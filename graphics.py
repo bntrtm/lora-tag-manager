@@ -1,25 +1,112 @@
-from tkinter import Tk, ttk, BOTH, X, Y, WORD, LEFT, RIGHT, TOP, END, S, Label, Frame, Button, Radiobutton, Text, Entry, filedialog, StringVar
+from tkinter import Tk, ttk, Toplevel, BOTH, X, Y, WORD, LEFT, RIGHT, TOP, END, N, S, Label, Frame, Button, Radiobutton, Text, Entry, filedialog, StringVar, IntVar, Checkbutton
 from PIL import Image, ImageTk
-from logic import on_text_change, add_new_tag
 from tags import TagBox
 import string
+from lora import LoRA
+import os
 
 class Window:
-    def __init__(self, gui_width, gui_height):
-        self.__root = Tk()
-        self.__root.title("LoRA Training Text Editor")
+    def __init__(self, gui_width, gui_height, title="LoRA Tag Manager", is_child=False):
         self.__is_running = False
+        if is_child:
+            self.__root = Toplevel()
+        else:
+            self.__root = Tk()
+        self.__root.title(title)
         self.__root.protocol(name="WM_DELETE_WINDOW", func=self.close)
-        self.tag_btlist = []
-        
+        self.active_queue_win = None
+
         # set up master pane
         self.__p_master = Frame(self.__root, height=gui_height, width=gui_width)
         self.__p_master.pack(fill=BOTH, expand=True, padx=5, pady=5)
         # SET STRICT SIZE:
         self.__p_master.pack_propagate(0)
+    
+    def redraw(self):
+        self.__root.update_idletasks()
+        self.__root.update()
+    
+    def wait_for_close(self):
+        self.__is_running = True
+        while self.__is_running:
+            self.redraw()
+        print("window closed...")
+
+    def start_queue(self, queue, func_on_yes=None):
+        self.active_queue_win = AddTxtQueueWin(300, 125, queue, self, func_on_yes=func_on_yes)
+        self.active_queue_win.progress()
+        # MAINLOOP
+        self.active_queue_win.wait_for_close()
+
+    def end_queue(self):
+        self.active_queue_win.close()
+        self.active_queue_win = None
+        
+    def close(self):
+        self.__is_running = False
+        self.__root.destroy()
+
+class AddTxtQueueWin(Window):
+    def __init__(self, gui_width, gui_height, queue, caller_win, func_on_yes=None):
+        super().__init__(gui_width, gui_height, title=".txt Caption Lookup Failure", is_child=True)
+        self.caller_win = caller_win
+        #self._Window__root.attributes('-topmost', True)
+        self._Window__root.protocol(name="WM_DELETE_WINDOW", func=self.respond_close_failure)
+        self.queue = queue
+        self.func_on_yes = func_on_yes
+        self.current = None
+        # set up pane to display information and prompt user for action
+        self.__p_info = Frame(self._Window__p_master, height=3, width=gui_width)
+        self.__p_info.pack(side=TOP, fill=X, expand=True, padx=5, pady=5)
+        self.__l_info = Label(self.__p_info, text= f"Click YES.")
+        self.__l_info.pack(side=LEFT)
+        self.__p_options = Frame(self._Window__p_master, height=1, width=gui_width)
+        self.__p_options.pack()
+        self.checkbox_var = IntVar()
+        self.checkbox_var.set(0)
+        self.checkbox = Checkbutton(self.__p_options, text="Apply for all in queue", variable=self.checkbox_var, onvalue=1, offvalue=0)
+        self.checkbox.pack(side=LEFT)
+        self.__bt_yes = Button(self.__p_options, text="Yes", command=self.confirm_yes)
+        self.__bt_yes.pack(side=LEFT)
+        self.__bt_no = Button(self.__p_options, text="No", command=self.confirm_no)
+        self.__bt_no.pack(side=LEFT)
+    
+    def respond_close_failure(self):
+        print("User attempted to close window, but option for queue item not chosen.")
+        print(f"Choose 'Yes' or 'No' for the current queue item: {self.current}")
+
+    def confirm_yes(self):
+        with open(f'{self.current.replace('.png', '.txt')}', "x") as f:
+            pass
+        self.func_on_yes(self.current)
+        self.progress()
+    
+    def confirm_no(self):
+        if self.checkbox_var.get() == 1:
+            self.queue = None
+            self.caller_win.end_queue()
+        else:
+            self.progress()
+    
+    def progress(self):
+        self.current = self.queue.pop()
+        if self.current is None:
+            self.queue = None
+            self.caller_win.end_queue()
+            print("calling end queue")
+            return
+        self.__l_info.config(text=f"No corresponding .txt file exists for image: \n'{self.current}'. \nWould you like to create one?")
+
+
+class TrainLoraWin(Window):
+    def __init__(self, gui_width, gui_height, title="LoRA Tag Manager"):
+        super().__init__(gui_width, gui_height, title="LoRA Tag Manager")
+        self.tag_btlist = []
+        self.lora_in_training = None
+        self.image_set_display_index = 0
 
         # set up persistent info pane
-        self.__p_info = Frame(self.__p_master, height=1, width=gui_width, highlightbackground="gray", highlightthickness=2)
+        self.__p_info = Frame(self._Window__p_master, height=1, width=gui_width, highlightbackground="gray", highlightthickness=2)
         self.__p_info.pack(side=TOP, fill=X, expand=True, padx=5, pady=5)
         self.directory = ""
         self.__bt_load_dir = Button(self.__p_info, text="Load", command=self.load_directory)
@@ -28,7 +115,7 @@ class Window:
         self.__l_info.pack(side=LEFT)
 
         # set up pane to house main elements
-        self.__p_hrzbox = Frame(self.__p_master)
+        self.__p_hrzbox = Frame(self._Window__p_master)
         self.__p_hrzbox.pack(side=TOP, fill=BOTH, expand=True)
         #self.__p_hrzbox.pack_propagate(0)
             # set up text editor pane
@@ -42,10 +129,9 @@ class Window:
         self.__nbk_tagmodes_tab1.pack(padx=5, pady=5)
         self.__nbk_tagmodes_tab2 = ttk.Frame(self.__nbk_tagmodes)
         self.__nbk_tagmodes_tab2.pack()
-        self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab1, text="Tags")
-        self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab2, text="Editor")
-        self.__caption_txt_field = Text(self.__nbk_tagmodes_tab2, wrap=WORD)
-        self.__caption_txt_field.insert(END, "anime style, character, blue man, robotic joints, neutral expression, exprNEU, ")
+        self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab1, text="Tag Editor")
+        self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab2, text="Caption")
+        self.__caption_txt_field = Text(self.__nbk_tagmodes_tab2, wrap=WORD, state='disabled')
         self.__caption_txt_field.pack(padx=5, pady=5)
                 # tag editing radio buttons
         self.__p_tag_radio_bts = Frame(self.__nbk_tagmodes_tab1, width=25)
@@ -55,7 +141,8 @@ class Window:
         self.tag_click_mode = StringVar(self.__p_tag_radio_bts, "Delete")
                     # Dictionary to create multiple buttons
         tag_click_radio_vals = {"Delete Selected" : "Delete",
-                "Apply Selected to All" : "Apply_All"}
+                "Apply Selected to All" : "Apply_All",
+                "Delete Selected from All" : "Delete_All"}
                     # Create buttons
         for (text, value) in tag_click_radio_vals.items():
             Radiobutton(self.__p_tag_radio_bts, text = text, variable = self.tag_click_mode, 
@@ -63,7 +150,6 @@ class Window:
                 # tagbox (buttons) container
         self.__p_tag_container = Frame(self.__nbk_tagmodes_tab1)
         self.__p_tag_container.pack(anchor="sw", padx=5, pady=5)
-        self.load_tags_as_boxes(self.__p_tag_container, self.__caption_txt_field.get("1.0", "end"))
 
                 # set up pane for singular tag entry
         self.__p_tagger = Frame(self.__p_editor)
@@ -71,7 +157,7 @@ class Window:
         self.tag_entry_text = StringVar()
         self.__txt_tag_entry = Entry(self.__p_tagger, textvariable=self.tag_entry_text) #, height=1, width=50
         self.__txt_tag_entry.pack(anchor="nw")
-        self.__txt_tag_entry.bind("<Return>", lambda event: on_text_change(event, self))
+        self.__txt_tag_entry.bind("<Return>", lambda event: self.on_text_change(event, self))
         self.__txt_tag_entry.bind("<FocusIn>", lambda event: self.on_focus_in_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
         self.__txt_tag_entry.bind("<FocusOut>", lambda event: self.on_focus_out_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
         self.on_focus_out_entry_widget("<FocusOut>", self.__txt_tag_entry, "Enter a tag...")
@@ -80,10 +166,10 @@ class Window:
         self.__p_radio_bts.pack(anchor="sw")
                     # Tkinter string variable
                     # able to store any string value
-        self.application_mode = StringVar(self.__p_radio_bts, "Current")
+        self.application_mode = StringVar(self.__p_radio_bts, "Apply")
                     # Dictionary to create multiple buttons
-        application_radio_vals = {"Apply to Current" : "Current",
-                "Apply to All" : "All"}
+        application_radio_vals = {"Apply to Current" : "Apply",
+                "Apply to All" : "Apply_All"}
                     # Create buttons
         for (text, value) in application_radio_vals.items():
             Radiobutton(self.__p_radio_bts, text = text, variable = self.application_mode, 
@@ -92,43 +178,113 @@ class Window:
             # set up image viewer pane
         self.__p_viewer = Frame(self.__p_hrzbox, height=gui_height, highlightbackground="gray", highlightthickness=2)
         self.__p_viewer.pack(anchor="e", side=LEFT, fill=BOTH, expand=True, padx=5, pady=5)
+        self.__p_viewer.pack_propagate(0)
         self.__l_viewer = Label(self.__p_viewer, text="Current: ")
         self.__l_viewer.pack()
+        self.__p_display = Frame(self.__p_viewer)
+        self.__p_display.pack(fill=BOTH, expand=True)
+        self.__bt_decrdisplay = Button(self.__p_display, text=' <- ', command=self.decr_display)
+        self.__bt_decrdisplay.grid(column=0, row=0, sticky='w')
+        self.__bt_savecurrent = Button(self.__p_display, text='Refresh', command=self.refresh)
+        self.__bt_savecurrent.grid(column=1, row=0, columnspan=2)
+        self.__bt_incrdisplay = Button(self.__p_display, text=' -> ', command=self.incr_display)
+        self.__bt_incrdisplay.grid(column=3, row=0, sticky='e')
         self.__l_image = Label(self.__p_viewer)
-        self.__l_image.pack(anchor=S)
-        # FOR TESTING ONLY
-        self.open_image('./testing/Blue_Neutral.png')
-    
-    def open_image(self, path):
-        #file_path = filedialog.askopenfilename(filetypes=[("PNG files", "*.png")])
-        if path and path.endswith('.png'):
-            self.display_image(path)
+        self.__l_image.pack(fill=BOTH, expand=True)
+
+    def refresh(self):
+        self.display_training_element(self.image_set_display_index)
+
+    def display_training_element(self, index):
+        if self.lora_in_training is None:
+            raise Exception('no LoRA object exists for the current session; load a directory to create one')
+        png_path = self.lora_in_training.image_set[index]
+        self.open_image(png_path)
+        self.load_caption(png_path)
+
+    def incr_display(self):
+        if self.lora_in_training is None:
+            raise Exception('no LoRA object exists for the current session; load a directory to create one')
+        if self.image_set_display_index == len(self.lora_in_training.image_set) - 1:
+            self.image_set_display_index = 0
         else:
-            print("No image!")
+            self.image_set_display_index = self.image_set_display_index + 1
+        self.display_training_element(self.image_set_display_index)
+
+    def decr_display(self):
+        if self.lora_in_training is None:
+            raise Exception('no LoRA object exists for the current session; load a directory to create one')
+        if self.image_set_display_index == 0:
+            self.image_set_display_index = len(self.lora_in_training.image_set) - 1
+        else:
+            self.image_set_display_index = self.image_set_display_index - 1
+        self.display_training_element(self.image_set_display_index)
+    
+    def set_caption_display_text(self, text):
+        self.__caption_txt_field.config(state='normal')
+        self.__caption_txt_field.delete("1.0", "end")
+        self.__caption_txt_field.insert(END, text)
+        self.__caption_txt_field.config(state='disabled')
+
+    def load_caption(self, png_path):
+        '''Loads contents of the editor window and all caption tags as interactive buttons
+
+        1) Deletes contents of editor.
+        2) Adds contents of txt_path file corresponding to png_path in the LoRA dataset.
+        3) Generates buttons representing each tag within the dataset and displays them in the 'Tags' window.
+        '''
+        self.set_caption_display_text(self.lora_in_training.dataset[png_path][1])
+        self.display_tags_as_boxes(self.__p_tag_container, self.lora_in_training.dataset[png_path][1])
+    
+    def open_image(self, png_path):
+        #file_path = filedialog.askopenfilename(filetypes=[("PNG files", "*.png")])
+        if png_path and png_path.endswith('.png'):
+            self.display_image(png_path)
+        else:
+            raise Exception('only images with .png extensions may be opened')
 
     def display_image(self, file_path):
+        
+        # FIXME: resizing does not fill entire image label; takes a few refreshes before it does.
+        def helper_resize_fit_to_height(img):
+            self.__l_image.update()
+            target_height = self.__l_image.winfo_height()
+            # get original aspect ratio as width/height
+            original_aspect = img.size[0] / img.size[1]
+            target_width = int(target_height * original_aspect)
+            resized = image.resize((target_width, target_height))
+            return resized
+
         image = Image.open(file_path) # open image
-        photo = ImageTk.PhotoImage(image) # convert for tkinter compatibility
+        resized = helper_resize_fit_to_height(image)
+        photo = ImageTk.PhotoImage(resized) # convert for tkinter compatibility
         self.__l_image.config(image=photo)
         self.__l_viewer.image = photo
         self.__l_viewer.config(text=f"Current: {file_path}")
 
     def load_directory(self):
         self.directory = filedialog.askdirectory()
+        if not os.path.isdir(self.directory):
+            print('Directory load operation was canceled.')
+            return
         self.__l_info.config(text=f"Working under directory: {self.directory}")
+        self.lora_in_training = LoRA(self.directory, self)
+        if len(self.lora_in_training.dataset) == 0:
+            self.lora_in_training = None
+            raise Exception(f'no data to read in {self.directory}')
+        self.display_training_element(0)
 
     def add_new_tagbox(self, widget, tag_string):
         new_bt = TagBox(self, widget, tag_string)
         self.tag_btlist.append(new_bt)
         self.display_tagbox_grid()
 
-    def load_tags_as_boxes(self, widget, tag_string, reload=False):
+    def display_tags_as_boxes(self, widget, tag_string, reload=True):
         if reload:
             for button in self.tag_btlist:
-                button.delete()
+                button.destroy()
             self.tag_btlist = []
-            #self.load_tags_as_boxes(widget, tag_string)
-        tag_strs = tag_string.split(", ")
+        tag_strs = tag_string.rstrip(', ').split(", ")
         for tag in tag_strs:
             if not tag.isspace():
                 self.add_new_tagbox(self.__p_tag_container, tag)
@@ -143,7 +299,25 @@ class Window:
             col_n += span
             if col_n > 3:
                 col_n = 0
-                row_n += 1                
+                row_n += 1
+
+    def on_text_change(self, event, win):
+        entry = self.__txt_tag_entry
+        text = entry.get().rstrip(", ").replace(",", "")
+        entry.delete(0, "end")
+        if not self.lora_in_training:
+            raise Exception('no LoRA object exists for the current session; load a directory to create one')
+        png_path = self.lora_in_training.image_set[self.image_set_display_index]
+        match self.application_mode.get():
+            case "Apply":
+                self.lora_in_training.add_tag_to_image_caption(text, png_path=png_path)
+            case "Apply_All":
+                print(f'Applying tag "{text}" to all .txt files in dataset {self.directory}')
+                self.lora_in_training.add_tag_to_image_caption(text, png_path=png_path, all=True)
+            case _:
+                raise ValueError("only 'Apply' and 'Apply_All' are acceptable actions")
+        self.refresh()
+        return "break"
 
     def on_focus_in_entry_widget(self, event, widget, placeholder_text):
         if isinstance(widget, Entry):
@@ -171,16 +345,3 @@ class Window:
         if len(text) == 0:
             widget.config(fg="gray")
             widget.insert(END, placeholder_text)
-
-    def redraw(self):
-        self.__root.update_idletasks()
-        self.__root.update()
-    
-    def wait_for_close(self):
-        self.__is_running = True
-        while self.__is_running:
-            self.redraw()
-        print("window closed...")
-
-    def close(self):
-        self.__is_running = False
