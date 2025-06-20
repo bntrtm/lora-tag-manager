@@ -14,6 +14,7 @@ class Window:
             self.__root = Tk()
         self.__root.title(title)
         self.__root.protocol(name="WM_DELETE_WINDOW", func=self.close)
+        self.__root.bind('<Configure>', self.on_resize) 
         self.active_queue_win = None
 
         # set up master pane
@@ -45,6 +46,9 @@ class Window:
     def close(self):
         self.__is_running = False
         self.__root.destroy()
+    
+    def on_resize(self, event):
+        pass
 
 class AddTxtQueueWin(Window):
     def __init__(self, gui_width, gui_height, queue, caller_win, func_on_yes=None):
@@ -97,13 +101,20 @@ class AddTxtQueueWin(Window):
             return
         self.__l_info.config(text=f"No corresponding .txt file exists for image: \n'{self.current}'. \nWould you like to create one?")
 
+def require_LoRA(func):
+        def wrapper(*args, **kwargs):
+            if args[0].lora_in_training is None:
+                raise Exception('no LoRA object exists for the current session; load a directory to create one')
+            result = func(*args, **kwargs)
+            return result
+        return wrapper
 
 class TrainLoraWin(Window):
     def __init__(self, gui_width, gui_height, title="LoRA Tag Manager"):
         super().__init__(gui_width, gui_height, title="LoRA Tag Manager")
         self.tag_btlist = []
         self.lora_in_training = None
-        self.image_set_display_index = 0
+        self.current_display_image = None
 
         # set up persistent info pane
         self.__p_info = Frame(self._Window__p_master, height=1, width=gui_width, highlightbackground="gray", highlightthickness=2)
@@ -200,41 +211,49 @@ class TrainLoraWin(Window):
         self.__l_image = Label(self.__p_viewer)
         self.__l_image.pack(fill=BOTH, expand=True)
 
+    def on_resize(self, event):
+        if not self.display_image:
+            self.display_image()
+
+    @require_LoRA
     def get_png_path(self):
-        if self.lora_in_training is None:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
-        return self.lora_in_training.image_set[self.image_set_display_index]
+        return self.lora_in_training.image_set[self.get_display_index()]
     
+    @require_LoRA
     def get_txt_caption(self):
-        if self.lora_in_training is None:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
         return self.lora_in_training.dataset[self.get_png_path()][1]
+
+    @require_LoRA
+    def get_display_index(self):
+        return self.lora_in_training.display_index
+    
+    @require_LoRA
+    def set_display_index(self, val):
+        self.lora_in_training.display_index = val
+
+    @require_LoRA
+    def tag_in_caption(self, tag):
+        return self.lora_in_training.tag_in_caption(tag)
 
     def refresh(self):
         self.display_training_element(refresh=True)
 
     def display_training_element(self, refresh=False):
-        if self.lora_in_training is None:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
         self.open_image(self.get_png_path())
         self.load_caption(self.get_png_path())
 
     def incr_display(self):
-        if self.lora_in_training is None:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
-        if self.image_set_display_index == len(self.lora_in_training.image_set) - 1:
-            self.image_set_display_index = 0
+        if self.get_display_index() == len(self.lora_in_training.image_set) - 1:
+            self.set_display_index(0)
         else:
-            self.image_set_display_index = self.image_set_display_index + 1
+            self.set_display_index(self.get_display_index() + 1)
         self.display_training_element()
 
     def decr_display(self):
-        if self.lora_in_training is None:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
-        if self.image_set_display_index == 0:
-            self.image_set_display_index = len(self.lora_in_training.image_set) - 1
+        if self.get_display_index() == 0:
+            self.set_display_index(len(self.lora_in_training.image_set) - 1)
         else:
-            self.image_set_display_index = self.image_set_display_index - 1
+            self.set_display_index(self.get_display_index() - 1)
         self.display_training_element()
     
     def set_caption_display_text(self, text):
@@ -253,31 +272,37 @@ class TrainLoraWin(Window):
         self.set_caption_display_text(self.get_txt_caption())
         self.display_tags_as_boxes(self.__p_tag_container, self.get_txt_caption())
     
-    def open_image(self, png_path):
-        #file_path = filedialog.askopenfilename(filetypes=[("PNG files", "*.png")])
+    def open_image(self, png_path, refresh=False):
         if png_path and png_path.endswith('.png'):
-            self.display_image(png_path)
+            self.load_image(png_path)
+            self.display_image()
+            self.__l_viewer.config(text=f"Current: {png_path}")
         else:
             raise Exception('only images with .png extensions may be opened')
 
-    def display_image(self, file_path):
-        
+    def load_image(self, file_path):
+        self.current_display_image = Image.open(file_path)
+
+    def display_image(self, refresh=False):
+        if not self.current_display_image:
+            raise Exception('No image set to display')
         # FIXME: resizing does not fill entire image label; takes a few refreshes before it does.
-        def helper_resize_fit_to_height(img):
-            self.__l_image.update()
-            target_height = self.__l_image.winfo_height()
+        def img_fit_to_height(label):
+            label.update_idletasks()
+            label.update()
+            img = self.current_display_image
+            target_height = label.winfo_height()
             # get original aspect ratio as width/height
             original_aspect = img.size[0] / img.size[1]
             target_width = int(target_height * original_aspect)
-            resized = image.resize((target_width, target_height))
+            resized = img.resize((target_width, target_height))
             return resized
 
-        image = Image.open(file_path) # open image
-        resized = helper_resize_fit_to_height(image)
-        photo = ImageTk.PhotoImage(resized) # convert for tkinter compatibility
+        resized_image = img_fit_to_height(self.__l_image)
+        photo = ImageTk.PhotoImage(resized_image) # convert for tkinter compatibility
         self.__l_image.config(image=photo)
-        self.__l_viewer.image = photo
-        self.__l_viewer.config(text=f"Current: {file_path}")
+        self.__l_image.image = photo
+        #self.__l_viewer.image = photo
 
     def load_directory(self):
         self.directory = filedialog.askdirectory()
@@ -288,22 +313,35 @@ class TrainLoraWin(Window):
         self.lora_in_training = LoRA(self.directory, self)
         if len(self.lora_in_training.dataset) == 0:
             self.lora_in_training = None
-            raise Exception(f'no data to read in {self.directory}')
-        self.display_training_element(0)
+            raise Exception(f'No images were found under directory {self.directory}')
+        self.display_training_element()
 
-    def add_new_tagbox(self, widget, tag_string):
-        new_bt = TagBox(self, widget, tag_string)
+    def add_new_tagbox(self, widget, tag):
+        new_bt = TagBox(self, widget, tag)
         self.tag_btlist.append(new_bt)
         self.display_tagbox_grid()
 
     def display_tags_as_boxes(self, widget, tag_string, reload=True):
-        if reload:
+        #FIXME: when entering an already existing tag, SOME existing tag is generated (though no doubles are added, as intended)
+        '''Deletes tagboxes that should not exist, adds those that should
+        '''
+        if len(self.tag_btlist) > 0:
+            keep_bts = []
             for button in self.tag_btlist:
-                button.destroy()
-            self.tag_btlist = []
+                if button.is_trigger:
+                    keep_bts.append(button)
+                    tag_string = tag_string.replace(f'{button.tag_text},', '')
+                elif self.tag_in_caption(button.tag_text):
+                    keep_bts.append(button)
+                    tag_string = tag_string.replace(f' {button.tag_text},', '')
+                else:
+                    button.destroy()
+            self.tag_btlist = keep_bts
         tag_strs = tag_string.rstrip(', ').split(", ")
         for tag in tag_strs:
-            if not tag.isspace():
+            if tag.isspace() or not tag:
+                continue
+            else:
                 self.add_new_tagbox(self.__p_tag_container, tag)
         self.display_tagbox_grid()
     
@@ -329,47 +367,59 @@ class TrainLoraWin(Window):
             negate = True
             text = text.lstrip('-')
         entry.delete(0, "end")
-        if not self.lora_in_training:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
-        if text == self.lora_in_training.trigger_word:
-            return
-        match self.application_mode.get():
-            case "Apply":
-                if negate:
-                    self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path())
-                else:
-                    self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path())
-            case "Apply_All":
-                if negate:
-                    print(f'Removing tag "{text}" from all .txt files in dataset {self.directory}')
-                    self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path(), all=True)
-                else:
-                    print(f'Applying tag "{text}" to all .txt files in dataset {self.directory}')
-                    self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path(), all=True)
-            case _:
-                raise ValueError("only 'Apply' and 'Apply_All' are acceptable actions")
-        self.refresh()
+        
+        @require_LoRA
+        def try_continue(self):
+            if text == self.lora_in_training.trigger_word:
+                return
+            match self.application_mode.get():
+                case "Apply":
+                    if negate:
+                        self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path())
+                    else:
+                        self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path())
+                case "Apply_All":
+                    if negate:
+                        print(f'Removing tag "{text}" from all .txt files in dataset {self.directory}')
+                        self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path(), all=True)
+                    else:
+                        print(f'Applying tag "{text}" to all .txt files in dataset {self.directory}')
+                        self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path(), all=True)
+                case _:
+                    raise ValueError("only 'Apply' and 'Apply_All' are acceptable actions")
+            self.refresh()
+
+        try_continue(self)
         return "break"
     
     def on_tag_auto(self, event):
         option_1_text = self.__autofill_box.labels[0].cget("text")
         if option_1_text:
-            self.tag_entry_text.set(option_1_text)
+            if self.tag_entry_text.get().startswith('-'):
+                self.tag_entry_text.set(f'-{option_1_text}')
+            else:
+                self.tag_entry_text.set(option_1_text)
             self.__txt_tag_entry.icursor(END)
         return "break"
     
+    @require_LoRA
     def trace_tag_entry(self, var, index, mode):
-        if self.lora_in_training is None:
-            return
         text = self.tag_entry_text.get().lower()
-        words_with_pre = self.lora_in_training.tag_trie.words_with_prefix(text)
+        if not text:
+            self.__autofill_box.update([])
+            return
+        words_with_pre = self.lora_in_training.tag_trie.words_with_prefix(text.lstrip('-'))
         options = []
         if len(words_with_pre) > 0:
             for suggestion in words_with_pre:
                 if self.lora_in_training.trigger_word == suggestion:
                     continue
-                if f' {suggestion},' in self.get_txt_caption():
-                    continue
+                if text.startswith('-'):
+                    if not self.tag_in_caption(suggestion):
+                        continue
+                else:
+                    if self.tag_in_caption(suggestion):
+                        continue
                 options.append(suggestion)
                 if len(options) == 3:
                     break

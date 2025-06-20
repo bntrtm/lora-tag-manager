@@ -22,9 +22,18 @@ class LoRA:
             pass
         self.generate_tag_trie()
         self.image_set = list(self.dataset.keys())
+        self.display_index = 0
+    
+    def save_dataset(self):
+        if len(self.dataset) == 0:
+            raise Exception("No images were found in the dataset.")
+        for key in self.dataset:
+            self.save_caption_to_txt(key)
 
     def save_caption_to_txt(self, png_path):
         txt_path = self.dataset[png_path][0]
+        if not os.path.isfile(txt_path):
+            raise Exception('Supposed *.txt path is not a valid file')
         with open(txt_path, "w") as file:
             file.write(self.dataset[png_path][1])
 
@@ -36,6 +45,13 @@ class LoRA:
         if not tag.isspace():
             self.tag_trie.remove(tag)
             count = self.tag_trie.get(tag)
+    
+    def tag_in_caption(self, tag, index=None):
+        if index is None:
+            index = self.display_index
+        caption = self.dataset[self.image_set[index]][1]
+        search = caption.replace(', ', ',').strip()
+        return tag in search
 
     def add_tag_to_image_caption(self, tag, png_path=None, all=False):
         if all:
@@ -44,9 +60,9 @@ class LoRA:
             return
         if not png_path:
             raise ValueError('a .png path must be provided for the addition of a single tag to a corresponding .txt file')
-        caption = self.dataset[png_path][1]
-        if f', {tag},' in caption or caption.startswith(f'{tag},'):
+        if self.tag_in_caption(tag):
             return
+        caption = self.dataset[png_path][1]
         txt_path = self.dataset[png_path][0]
         if caption.endswith(','):
             self.dataset[png_path] = (txt_path, (caption + f' {tag}, '))
@@ -61,10 +77,10 @@ class LoRA:
             return
         if not png_path:
             raise ValueError('a .png path must be provided for the removal of a single tag from a corresponding .txt file')
+        if not self.tag_in_caption(tag):
+            return
         txt_path = self.dataset[png_path][0]
         caption = self.dataset[png_path][1]
-        if f'{tag},' not in caption:
-            return
         self.dataset[png_path] = (txt_path, (caption.replace(f'{tag}, ', f'{tag}').replace(f'{tag}', '')))
         self.try_remove_trie_tag(tag)
 
@@ -109,6 +125,7 @@ class LoRA:
         '''Caches tag trie and captions for the LoRA in training.
         
         Reads each .txt file and populates the 'self.tag_trie' property with their contents.
+        The tag trie also stores an integer associated with each tag representing the number of times it appears in the dataset.
         Also creates a cache for caption editing.
         '''
         if len(self.dataset) == 0:
@@ -140,8 +157,3 @@ class LoRA:
                 print(f"Error: The file '{txt_path}' was not found.")
             except Exception as e:
                 print(f"An error occurred: {e}")
-
-    def destroy_all_tag_instances(self, str):
-        '''Removes input tag from the tag trie and from all .txt files
-        '''
-        pass
