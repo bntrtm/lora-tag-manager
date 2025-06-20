@@ -83,11 +83,55 @@ class Trie:
             return True
         return False
     
+    def get(self, word):
+        '''Returns a numeric value assigned to 'self.endsymbol'.
+
+        A return value of 0 does NOT necessarily mean the word does not exist!
+        '''
+        current = self.root
+        for char in word:
+            if char in current:
+                current = current[char]
+            else:
+                return 0
+        if self.end_symbol in current:
+            if isinstance(current[self.end_symbol], int):
+                return current[self.end_symbol]
+        return 0
+    
     def add(self, word):
         current = self.root
         for char in word:
             if char not in current:
                 current[char] = {}
             current = current[char]
-        current[self.end_symbol] = True
-    
+        if self.end_symbol not in current:
+            current[self.end_symbol] = 1
+        else:
+            current[self.end_symbol] = current[self.end_symbol] + 1
+
+    def remove(self, word):
+        current = self.root
+        parent_stack = []
+        parent_keys = []
+        for char in word:
+            if char in current:
+                parent_stack.append(current)
+                parent_keys.append(char)
+                current = current[char]
+            else:
+                # word does not exist in trie
+                return
+        if self.end_symbol in current:
+            if current[self.end_symbol] > 1:
+                current[self.end_symbol] = current[self.end_symbol] - 1
+                return
+            del current[self.end_symbol]
+            while len(parent_stack) > 0:
+                current = parent_stack.pop()
+                key = parent_keys.pop()
+                if len(current[key]) == 0:
+                    del current[key]
+                else:
+                    break
+        return
