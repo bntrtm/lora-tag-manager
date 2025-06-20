@@ -159,6 +159,9 @@ class TrainLoraWin(Window):
         self.__txt_tag_entry.pack(anchor="nw")
         self.tag_entry_text.trace_add('write', self.trace_tag_entry)
         self.__txt_tag_entry.bind("<Return>", lambda event: self.on_tag_entry(event, self))
+        self.__txt_tag_entry.bind("<Tab>", self.on_tag_auto)
+        self.__txt_tag_entry.bind("<Up>", self.nav_autofill)
+        self.__txt_tag_entry.bind("<Down>", self.nav_autofill)
         self.__txt_tag_entry.bind("<FocusIn>", lambda event: self.on_focus_in_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
         self.__txt_tag_entry.bind("<FocusOut>", lambda event: self.on_focus_out_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
         self.on_focus_out_entry_widget("<FocusOut>", self.__txt_tag_entry, "Enter a tag...")
@@ -197,15 +200,24 @@ class TrainLoraWin(Window):
         self.__l_image = Label(self.__p_viewer)
         self.__l_image.pack(fill=BOTH, expand=True)
 
-    def refresh(self):
-        self.display_training_element(self.image_set_display_index)
-
-    def display_training_element(self, index):
+    def get_png_path(self):
         if self.lora_in_training is None:
             raise Exception('no LoRA object exists for the current session; load a directory to create one')
-        png_path = self.lora_in_training.image_set[index]
-        self.open_image(png_path)
-        self.load_caption(png_path)
+        return self.lora_in_training.image_set[self.image_set_display_index]
+    
+    def get_txt_caption(self):
+        if self.lora_in_training is None:
+            raise Exception('no LoRA object exists for the current session; load a directory to create one')
+        return self.lora_in_training.dataset[self.get_png_path()][1]
+
+    def refresh(self):
+        self.display_training_element(refresh=True)
+
+    def display_training_element(self, refresh=False):
+        if self.lora_in_training is None:
+            raise Exception('no LoRA object exists for the current session; load a directory to create one')
+        self.open_image(self.get_png_path())
+        self.load_caption(self.get_png_path())
 
     def incr_display(self):
         if self.lora_in_training is None:
@@ -214,7 +226,7 @@ class TrainLoraWin(Window):
             self.image_set_display_index = 0
         else:
             self.image_set_display_index = self.image_set_display_index + 1
-        self.display_training_element(self.image_set_display_index)
+        self.display_training_element()
 
     def decr_display(self):
         if self.lora_in_training is None:
@@ -223,7 +235,7 @@ class TrainLoraWin(Window):
             self.image_set_display_index = len(self.lora_in_training.image_set) - 1
         else:
             self.image_set_display_index = self.image_set_display_index - 1
-        self.display_training_element(self.image_set_display_index)
+        self.display_training_element()
     
     def set_caption_display_text(self, text):
         self.__caption_txt_field.config(state='normal')
@@ -238,8 +250,8 @@ class TrainLoraWin(Window):
         2) Adds contents of txt_path file corresponding to png_path in the LoRA dataset.
         3) Generates buttons representing each tag within the dataset and displays them in the 'Tags' window.
         '''
-        self.set_caption_display_text(self.lora_in_training.dataset[png_path][1])
-        self.display_tags_as_boxes(self.__p_tag_container, self.lora_in_training.dataset[png_path][1])
+        self.set_caption_display_text(self.get_txt_caption())
+        self.display_tags_as_boxes(self.__p_tag_container, self.get_txt_caption())
     
     def open_image(self, png_path):
         #file_path = filedialog.askopenfilename(filetypes=[("PNG files", "*.png")])
@@ -308,7 +320,10 @@ class TrainLoraWin(Window):
 
     def on_tag_entry(self, event, win):
         entry = self.__txt_tag_entry
-        text = entry.get().rstrip(", ").replace(",", "").lower()
+        if self.__autofill_box.selected:
+            text = self.__autofill_box.selected.cget("text")
+        else:
+            text = entry.get().rstrip(", ").replace(",", "").lower()
         entry.delete(0, "end")
         if not self.lora_in_training:
             raise Exception('no LoRA object exists for the current session; load a directory to create one')
@@ -326,12 +341,35 @@ class TrainLoraWin(Window):
         self.refresh()
         return "break"
     
+    def on_tag_auto(self, event):
+        option_1_text = self.__autofill_box.labels[0].cget("text")
+        if option_1_text:
+            self.tag_entry_text.set(option_1_text)
+            self.__txt_tag_entry.icursor(END)
+        return "break"
+    
     def trace_tag_entry(self, var, index, mode):
         if self.lora_in_training is None:
             return
         text = self.tag_entry_text.get().lower()
-        options = self.lora_in_training.tag_trie.words_with_prefix(text)
-        self.__autofill_box.update(options)
+        words_with_pre = self.lora_in_training.tag_trie.words_with_prefix(text)
+        options = []
+        if len(words_with_pre) > 0:
+            for suggestion in words_with_pre:
+                if self.lora_in_training.trigger_word == suggestion:
+                    continue
+                if f' {suggestion},' in self.get_txt_caption():
+                    continue
+                options.append(suggestion)
+                if len(options) == 3:
+                    break
+        self.__autofill_box.update(options[:3])
+    
+    def nav_autofill(self, event):
+        if event.keysym == "Up":
+            self.__autofill_box.navigate(1)
+        elif event.keysym == "Down":
+            self.__autofill_box.navigate(-1)
 
     def on_focus_in_entry_widget(self, event, widget, placeholder_text):
         if isinstance(widget, Entry):
@@ -366,7 +404,35 @@ class SuggestBox:
         self.lighten_foreground_color(self.__l_opt3, color, 0.33)
         self.__l_opt3.grid(column=0, row=2, sticky="w")
         self.labels = [self.__l_opt1, self.__l_opt2, self.__l_opt3]
+        self.selected = None
+        self.default_label_bg_color = self.__l_opt1.cget('bg')
         self.clear()
+    
+    def navigate(self, dir):
+        if self.selected:
+            if dir > 0:
+                if self.selected == self.labels[1]:
+                    self.select(self.labels[0])
+                elif self.selected == self.labels[2]:
+                    self.select(self.labels[1])
+            elif dir < 0:
+                if self.selected == self.labels[0]:
+                    self.select(self.labels[1])
+                elif self.selected == self.labels[1]:
+                    self.select(self.labels[2])
+        else:
+            self.select(self.labels[0])
+
+    def select(self, label):
+        self.deselect()
+        if label.cget('text'):
+            self.selected = label
+            label.config(bg='gold')
+
+    def deselect(self):
+        if self.selected:
+            self.selected.config(bg=self.default_label_bg_color)
+            self.selected = None
     
     def set_label_text(self, label, text):
             label.config(text=text)
@@ -385,6 +451,7 @@ class SuggestBox:
     def clear(self):
         for label in self.labels:
             self.set_label_text(label, '')
+        self.deselect()
 
     
     def lighten_foreground_color(self, label, color, amount):
