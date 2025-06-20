@@ -319,23 +319,33 @@ class TrainLoraWin(Window):
                 row_n += 1
 
     def on_tag_entry(self, event, win):
+        negate = False
         entry = self.__txt_tag_entry
         if self.__autofill_box.selected:
             text = self.__autofill_box.selected.cget("text")
         else:
             text = entry.get().rstrip(", ").replace(",", "").lower()
+        if text.startswith('-'):
+            negate = True
+            text = text.lstrip('-')
         entry.delete(0, "end")
         if not self.lora_in_training:
             raise Exception('no LoRA object exists for the current session; load a directory to create one')
         if text == self.lora_in_training.trigger_word:
             return
-        png_path = self.lora_in_training.image_set[self.image_set_display_index]
         match self.application_mode.get():
             case "Apply":
-                self.lora_in_training.add_tag_to_image_caption(text, png_path=png_path)
+                if negate:
+                    self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path())
+                else:
+                    self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path())
             case "Apply_All":
-                print(f'Applying tag "{text}" to all .txt files in dataset {self.directory}')
-                self.lora_in_training.add_tag_to_image_caption(text, png_path=png_path, all=True)
+                if negate:
+                    print(f'Removing tag "{text}" from all .txt files in dataset {self.directory}')
+                    self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path(), all=True)
+                else:
+                    print(f'Applying tag "{text}" to all .txt files in dataset {self.directory}')
+                    self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path(), all=True)
             case _:
                 raise ValueError("only 'Apply' and 'Apply_All' are acceptable actions")
         self.refresh()
