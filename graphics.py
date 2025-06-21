@@ -35,7 +35,7 @@ class Window:
         self.__is_running = True
         while self.__is_running:
             self.redraw()
-        print("window closed...")
+        print("Window closed.")
 
     def start_queue(self, queue, func_on_yes=None):
         self.active_queue_win = AddTxtQueueWin(300, 125, queue, self, func_on_yes=func_on_yes)
@@ -101,7 +101,6 @@ class AddTxtQueueWin(Window):
         if self.current is None:
             self.queue = None
             self.caller_win.end_queue()
-            print("calling end queue")
             return
         self.__l_info.config(text=f"No corresponding .txt file exists for image: \n'{self.current}'. \nWould you like to create one?")
 
@@ -329,7 +328,6 @@ class TrainLoraWin(Window):
         #FIXME: when entering an already existing tag, SOME existing tag is generated (though no doubles are added, as intended)
         '''Deletes tagboxes that should not exist, adds those that should
         '''
-        print('called')
         tag_strs = tag_string.rstrip(', ').split(", ")
         if len(self.tag_btlist) > 0:
             keep_bts = []
@@ -347,12 +345,10 @@ class TrainLoraWin(Window):
             self.tag_btlist = keep_bts
         #tag_strs = tag_string.rstrip(', ').split(", ")
         for tag in tag_strs:
-            print(tag)
             if tag.isspace() or not tag:
                 continue
             else:
                 self.add_new_tagbox(self.__p_tag_container, tag)
-                print(f'adding tagbox _{tag}_')
         self.display_tagbox_grid()
     
     def display_tagbox_grid(self):

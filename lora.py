@@ -127,7 +127,7 @@ class LoRA:
         txt_path = png_path.replace('.png', '.txt')
         if os.path.isfile(txt_path):
                 self.dataset[png_path] = (txt_path, None)
-                print(f"Adding training pair '{png_path} : {txt_path}' to the dataset...")
+                print(f"Adding training pair '...{png_path[-30:]} : ...{txt_path[-30]}' to the dataset...")
         else:
             raise Exception(f".txt file still not found corresponding to image '{png_path}'")
     
