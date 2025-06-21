@@ -1,5 +1,6 @@
 from tkinter import Tk
 from structures import Trie, Queue
+from log_format import str_tail_after
 import os
 
 
@@ -118,16 +119,17 @@ class LoRA:
                 if self.add_txt_queue is None:
                     self.add_txt_queue = Queue()
                 self.add_txt_queue.push(path)
-                #if self.win.active_queue_win is None:
-                    #self.win.start_queue(self.add_txt_queue, func_on_yes=self.add_dataset_element)
     
-    def add_dataset_element(self, png_path):
+    def add_dataset_element(self, png_path):        
         '''Given a path to a png file, adds existing txt file of the same name, or else returns an error
         '''
+        if png_path in self.dataset:
+            print(f'Skipping {str_tail_after(png_path, f'{self.directory}/')} (already in dataset).')
+            return
         txt_path = png_path.replace('.png', '.txt')
         if os.path.isfile(txt_path):
                 self.dataset[png_path] = (txt_path, None)
-                print(f"Adding training pair '...{png_path[-30:]} : ...{txt_path[-30]}' to the dataset...")
+                print(f"Adding training pair: {str_tail_after(png_path, f'{str_tail_after(self.directory, '/')}/')} -> {str_tail_after(txt_path, f'{str_tail_after(self.directory, '/')}/')}")
         else:
             raise Exception(f".txt file still not found corresponding to image '{png_path}'")
     
