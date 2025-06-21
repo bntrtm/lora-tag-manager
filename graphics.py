@@ -3,9 +3,9 @@ from PIL import Image, ImageTk
 from tags import TagBox
 import string
 from lora import LoRA
+from log_format import str_tail_after
 import os
 
-#TODO: Add an export button
 #TODO: Fix image resize bug
     #TODO: ensure resizing window actually updates image label size
 
@@ -142,9 +142,14 @@ class TrainLoraWin(Window):
         self.__nbk_tagmodes_tab1 = ttk.Frame(self.__nbk_tagmodes)
         self.__nbk_tagmodes_tab1.pack(padx=5, pady=5)
         self.__nbk_tagmodes_tab2 = ttk.Frame(self.__nbk_tagmodes)
-        self.__nbk_tagmodes_tab2.pack()
+        self.__nbk_tagmodes_tab2.pack(padx=5, pady=5)
+        self.__nbk_tagmodes_tab3 = ttk.Frame(self.__nbk_tagmodes)
+        self.__nbk_tagmodes_tab3.pack(padx=5, pady=5)
         self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab1, text="Tag Editor")
         self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab2, text="Caption")
+        self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab3, text="Options")
+        self.__bt_savedataset = Button(self.__nbk_tagmodes_tab3, text="Save Dataset", command=self.save_dataset)
+        self.__bt_savedataset.pack(padx=5, pady=5)
         self.__caption_txt_field = Text(self.__nbk_tagmodes_tab2, wrap=WORD, state='disabled')
         self.__caption_txt_field.pack(padx=5, pady=5)
                 # tag editing radio buttons
@@ -186,13 +191,9 @@ class TrainLoraWin(Window):
                     # application radio buttons
         self.__p_radio_bts = Frame(self.__p_tagger, width=25)
         self.__p_radio_bts.pack(anchor="sw")
-                    # Tkinter string variable
-                    # able to store any string value
         self.application_mode = StringVar(self.__p_radio_bts, "Apply")
-                    # Dictionary to create multiple buttons
         application_radio_vals = {"Apply to Current" : "Apply",
                 "Apply to All" : "Apply_All"}
-                    # Create buttons
         for (text, value) in application_radio_vals.items():
             Radiobutton(self.__p_radio_bts, text = text, variable = self.application_mode, 
                         value = value).pack(side=LEFT, fill = X, ipady = 5)
@@ -213,6 +214,10 @@ class TrainLoraWin(Window):
         self.__bt_incrdisplay.grid(column=3, row=0, sticky='e')
         self.__l_image = Label(self.__p_viewer)
         self.__l_image.pack(fill=BOTH, expand=True)
+    
+    @require_LoRA
+    def save_dataset(self):
+        self.lora_in_training.save_dataset()
 
     def on_resize(self, event):
         if not self.display_image:
@@ -279,7 +284,7 @@ class TrainLoraWin(Window):
         if png_path and png_path.endswith('.png'):
             self.load_image(png_path)
             self.display_image()
-            self.__l_viewer.config(text=f"Current: {png_path}")
+            self.__l_viewer.config(text=f"Current: {str_tail_after(self.directory, '/')}...{str_tail_after(png_path, '/')}")
         else:
             raise Exception('only images with .png extensions may be opened')
 
@@ -305,13 +310,14 @@ class TrainLoraWin(Window):
         photo = ImageTk.PhotoImage(resized_image) # convert for tkinter compatibility
         self.__l_image.config(image=photo)
         self.__l_image.image = photo
-        #self.__l_viewer.image = photo
 
     def load_directory(self):
         self.directory = filedialog.askdirectory()
         if not os.path.isdir(self.directory):
             print('Directory load operation was canceled.')
             return
+        if self.lora_in_training:
+            self.lora_in_training = None
         self.__l_info.config(text=f"Working under directory: {self.directory}")
         self.lora_in_training = LoRA(self.directory, self)
         if len(self.lora_in_training.dataset) == 0:
@@ -335,15 +341,12 @@ class TrainLoraWin(Window):
                 if button.is_trigger:
                     keep_bts.append(button)
                     tag_strs.remove(button.tag_text)
-                    #tag_string = tag_string.replace(f'{button.tag_text},', '')
                 elif self.tag_in_caption(button.tag_text):
                     keep_bts.append(button)
                     tag_strs.remove(button.tag_text)
-                    #tag_string = tag_string.replace(f' {button.tag_text},', '')
                 else:
                     button.destroy()
             self.tag_btlist = keep_bts
-        #tag_strs = tag_string.rstrip(', ').split(", ")
         for tag in tag_strs:
             if tag.isspace() or not tag:
                 continue
@@ -355,7 +358,9 @@ class TrainLoraWin(Window):
         col_n = 0
         row_n = 0
         for tagbox in self.tag_btlist:
-            span = max((len(tagbox.tag_text) // 15), 1)
+            span = max((len(tagbox.tag_text) // 16), 1)
+            if tagbox.bt is None:
+                continue
             tagbox.bt.grid(sticky="w", row=row_n, column=col_n, padx=2, pady=2, columnspan=span)
             col_n += span
             if col_n > 3:

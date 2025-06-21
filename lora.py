@@ -35,6 +35,7 @@ class LoRA:
         txt_path = self.dataset[png_path][0]
         if not os.path.isfile(txt_path):
             raise Exception('Supposed *.txt path is not a valid file')
+        print(f"Saving caption for {str_tail_after(png_path, '/')} at {str_tail_after(txt_path, f'{str_tail_after(self.directory, '/')}/')}")
         with open(txt_path, "w") as file:
             file.write(self.dataset[png_path][1])
 
@@ -92,7 +93,7 @@ class LoRA:
             return
         txt_path = self.dataset[png_path][0]
         caption = self.dataset[png_path][1]
-        self.dataset[png_path] = (txt_path, (caption.replace(f', {tag}, ', ', ')))
+        self.dataset[png_path] = (txt_path, (caption.replace(f', {tag}, ', ', ').replace(f', {tag},', ', ')))
         self.try_remove_trie_tag(tag)
 
     def expand_dataset_recursive(self, path):
