@@ -20,13 +20,22 @@ class LoRA:
             self.win.start_queue(self.add_txt_queue, func_on_yes=self.add_dataset_element)
         while self.win.active_queue_win is not None:
             pass
-        self.generate_tag_set()
+        self.generate_tag_trie()
         self.image_set = list(self.dataset.keys())
 
     def save_caption_to_txt(self, png_path):
         txt_path = self.dataset[png_path][0]
         with open(txt_path, "w") as file:
             file.write(self.dataset[png_path][1])
+
+    def try_add_trie_tag(self, tag):
+        if not tag.isspace():
+            self.tag_trie.add(tag)
+    
+    def try_remove_trie_tag(self, tag):
+        if not tag.isspace():
+            self.tag_trie.remove(tag)
+            count = self.tag_trie.get(tag)
 
     def add_tag_to_image_caption(self, tag, png_path=None, all=False):
         if all:
@@ -36,13 +45,14 @@ class LoRA:
         if not png_path:
             raise ValueError('a .png path must be provided for the addition of a single tag to a corresponding .txt file')
         caption = self.dataset[png_path][1]
-        if f'{tag},' in caption:
+        if f', {tag},' in caption or caption.startswith(f'{tag},'):
             return
         txt_path = self.dataset[png_path][0]
         if caption.endswith(','):
             self.dataset[png_path] = (txt_path, (caption + f' {tag}, '))
         else:
             self.dataset[png_path] = (txt_path, (caption + f'{tag}, '))
+        self.try_add_trie_tag(tag)
 
     def remove_tag_from_image_caption(self, tag, png_path=None, all=False):
         if all:
@@ -56,6 +66,7 @@ class LoRA:
         if f'{tag},' not in caption:
             return
         self.dataset[png_path] = (txt_path, (caption.replace(f'{tag}, ', f'{tag}').replace(f'{tag}', '')))
+        self.try_remove_trie_tag(tag)
 
     def expand_dataset_recursive(self, path):
         '''Given a directory, loads files within as a dataset.
@@ -94,7 +105,7 @@ class LoRA:
         else:
             raise Exception(f".txt file still not found corresponding to image '{png_path}'")
     
-    def generate_tag_set(self):
+    def generate_tag_trie(self):
         '''Caches tag trie and captions for the LoRA in training.
         
         Reads each .txt file and populates the 'self.tag_trie' property with their contents.
@@ -111,7 +122,7 @@ class LoRA:
                     file_content = file.read().strip()
                 # eliminate all whitespace and delimit at commas to get a list of tags for this caption
                 caption_tags = file_content.replace(', ', ',').split(',')
-                # set a trigger word for this LoRA if it hasn't been set
+                # set a trigger word for this LoRA if it hasn't been set already
                 if self.trigger_word is None:
                     self.trigger_word = caption_tags[0]
                 if self.trigger_word != caption_tags[0]:
@@ -124,19 +135,11 @@ class LoRA:
                 self.dataset[key] = (txt_path, file_content)
                 # add all tags to the tag trie
                 for tag in caption_tags:
-                    if tag == self.trigger_word:
-                        continue
-                    if not tag.isspace():
-                        self.tag_trie.add(tag)
+                    self.try_add_trie_tag(tag)
             except FileNotFoundError:
                 print(f"Error: The file '{txt_path}' was not found.")
             except Exception as e:
                 print(f"An error occurred: {e}")
-            
-    def generate_tag_trie(self):
-        '''Generates a trie from the tags found in the 'self.tags' set
-        '''
-        pass
 
     def destroy_all_tag_instances(self, str):
         '''Removes input tag from the tag trie and from all .txt files
