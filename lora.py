@@ -1,5 +1,6 @@
 from tkinter import Tk
 from structures import Trie, Queue
+from log_format import str_tail_after
 import os
 
 
@@ -34,6 +35,7 @@ class LoRA:
         txt_path = self.dataset[png_path][0]
         if not os.path.isfile(txt_path):
             raise Exception('Supposed *.txt path is not a valid file')
+        print(f"Saving caption for {str_tail_after(png_path, '/')} at {str_tail_after(txt_path, f'{str_tail_after(self.directory, '/')}/')}")
         with open(txt_path, "w") as file:
             file.write(self.dataset[png_path][1])
 
@@ -119,13 +121,16 @@ class LoRA:
                     self.add_txt_queue = Queue()
                 self.add_txt_queue.push(path)
     
-    def add_dataset_element(self, png_path):
+    def add_dataset_element(self, png_path):        
         '''Given a path to a png file, adds existing txt file of the same name, or else returns an error
         '''
+        if png_path in self.dataset:
+            print(f'Skipping {str_tail_after(png_path, f'{self.directory}/')} (already in dataset).')
+            return
         txt_path = png_path.replace('.png', '.txt')
         if os.path.isfile(txt_path):
                 self.dataset[png_path] = (txt_path, None)
-                print(f"Adding training pair '{png_path} : {txt_path}' to the dataset...")
+                print(f"Adding training pair: {str_tail_after(png_path, f'{str_tail_after(self.directory, '/')}/')} -> {str_tail_after(txt_path, f'{str_tail_after(self.directory, '/')}/')}")
         else:
             raise Exception(f".txt file still not found corresponding to image '{png_path}'")
     
