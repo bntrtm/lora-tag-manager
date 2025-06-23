@@ -370,13 +370,12 @@ class TrainLoraWin(Window):
     def on_tag_entry(self, event, win):
         negate = False
         entry = self.__txt_tag_entry
-        if self.__autofill_box.selected:
-            text = self.__autofill_box.selected.cget("text")
-        else:
-            text = entry.get().rstrip(", ").replace(",", "").lower()
+        text = entry.get().rstrip(", ").replace(",", "").lower()
         if text.startswith('-'):
             negate = True
             text = text.lstrip('-')
+        if self.__autofill_box.selected:
+            text = self.__autofill_box.selected.cget("text")
         entry.delete(0, "end")
         
         @require_LoRA
