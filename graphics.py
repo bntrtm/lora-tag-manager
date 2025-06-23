@@ -348,7 +348,9 @@ class TrainLoraWin(Window):
         col_n = 0
         row_n = 0
         for tagbox in self.tag_btlist:
-            span = max((len(tagbox.tag_text) // 15), 1)
+            span = max((len(tagbox.tag_text) // 16), 1)
+            if tagbox.bt is None:
+                continue
             tagbox.bt.grid(sticky="w", row=row_n, column=col_n, padx=2, pady=2, columnspan=span)
             col_n += span
             if col_n > 3:

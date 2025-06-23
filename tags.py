@@ -20,7 +20,7 @@ class TagBox:
             return
         match self.win.tag_click_mode.get():
             case "Delete":
-                self.delete()
+                self.win.lora_in_training.remove_tag_from_image_caption(self.tag_text, png_path=self.win.get_png_path())
             case "Delete_All":
                 print(f'Removing tag "{self.tag_text}" from all .txt files in dataset {self.win.directory}')
                 self.win.lora_in_training.remove_tag_from_image_caption(self.tag_text, all=True)
@@ -31,13 +31,6 @@ class TagBox:
                 raise ValueError("only 'Delete' and 'Apply_All' are acceptable actions")
         self.win.refresh()
     
-    def delete(self):
-        text = self.bt.cget("text")
-        print(f'deleting tag in caption: {self.tag_text}')
-        tags = self.win._TrainLoraWin__caption_txt_field.get("1.0", "end-1c")
-        self.win.lora_in_training.remove_tag_from_image_caption(self.tag_text, png_path=self.win.get_png_path())
-        self.win.refresh()
-        self.destroy()
-    
     def destroy(self):
-        self.bt.destroy()
+        if self.bt is not None and self.bt.winfo_exists():
+            self.bt.destroy()

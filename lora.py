@@ -93,7 +93,7 @@ class LoRA:
             return
         txt_path = self.dataset[png_path][0]
         caption = self.dataset[png_path][1]
-        self.dataset[png_path] = (txt_path, (caption.replace(f', {tag}, ', ', ')))
+        self.dataset[png_path] = (txt_path, (caption.replace(f', {tag}, ', ', ').replace(f', {tag},', ', ')))
         self.try_remove_trie_tag(tag)
 
     def expand_dataset_recursive(self, path):
