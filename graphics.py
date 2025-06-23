@@ -3,6 +3,7 @@ from PIL import Image, ImageTk
 from tags import TagBox
 import string
 from lora import LoRA
+from log_format import str_tail_after
 import os
 
 #TODO: Add an export button
@@ -275,7 +276,7 @@ class TrainLoraWin(Window):
         if png_path and png_path.endswith('.png'):
             self.load_image(png_path)
             self.display_image()
-            self.__l_viewer.config(text=f"Current: {png_path}")
+            self.__l_viewer.config(text=f"Current: {str_tail_after(self.directory, '/')}...{str_tail_after(png_path, '/')}")
         else:
             raise Exception('only images with .png extensions may be opened')
 
