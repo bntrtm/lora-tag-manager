@@ -118,8 +118,6 @@ class LoRA:
                 if self.add_txt_queue is None:
                     self.add_txt_queue = Queue()
                 self.add_txt_queue.push(path)
-                #if self.win.active_queue_win is None:
-                    #self.win.start_queue(self.add_txt_queue, func_on_yes=self.add_dataset_element)
     
     def add_dataset_element(self, png_path):
         '''Given a path to a png file, adds existing txt file of the same name, or else returns an error
