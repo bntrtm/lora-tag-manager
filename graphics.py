@@ -157,10 +157,18 @@ class TrainLoraWin(Window):
         self.tag_entry_text = StringVar()
         self.__txt_tag_entry = Entry(self.__p_tagger, textvariable=self.tag_entry_text) #, height=1, width=50
         self.__txt_tag_entry.pack(anchor="nw")
-        self.__txt_tag_entry.bind("<Return>", lambda event: self.on_text_change(event, self))
+        self.tag_entry_text.trace_add('write', self.trace_tag_entry)
+        self.__txt_tag_entry.bind("<Return>", lambda event: self.on_tag_entry(event, self))
+        self.__txt_tag_entry.bind("<Tab>", self.on_tag_auto)
+        self.__txt_tag_entry.bind("<Up>", self.nav_autofill)
+        self.__txt_tag_entry.bind("<Down>", self.nav_autofill)
         self.__txt_tag_entry.bind("<FocusIn>", lambda event: self.on_focus_in_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
         self.__txt_tag_entry.bind("<FocusOut>", lambda event: self.on_focus_out_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
         self.on_focus_out_entry_widget("<FocusOut>", self.__txt_tag_entry, "Enter a tag...")
+
+                    # autofill box
+        self.__autofill_box = SuggestBox(self.__p_editor, color='red')
+
                     # application radio buttons
         self.__p_radio_bts = Frame(self.__p_tagger, width=25)
         self.__p_radio_bts.pack(anchor="sw")
@@ -310,12 +318,17 @@ class TrainLoraWin(Window):
                 col_n = 0
                 row_n += 1
 
-    def on_text_change(self, event, win):
+    def on_tag_entry(self, event, win):
         entry = self.__txt_tag_entry
-        text = entry.get().rstrip(", ").replace(",", "")
+        if self.__autofill_box.selected:
+            text = self.__autofill_box.selected.cget("text")
+        else:
+            text = entry.get().rstrip(", ").replace(",", "").lower()
         entry.delete(0, "end")
         if not self.lora_in_training:
             raise Exception('no LoRA object exists for the current session; load a directory to create one')
+        if text == self.lora_in_training.trigger_word:
+            return
         png_path = self.lora_in_training.image_set[self.image_set_display_index]
         match self.application_mode.get():
             case "Apply":
@@ -327,6 +340,36 @@ class TrainLoraWin(Window):
                 raise ValueError("only 'Apply' and 'Apply_All' are acceptable actions")
         self.refresh()
         return "break"
+    
+    def on_tag_auto(self, event):
+        option_1_text = self.__autofill_box.labels[0].cget("text")
+        if option_1_text:
+            self.tag_entry_text.set(option_1_text)
+            self.__txt_tag_entry.icursor(END)
+        return "break"
+    
+    def trace_tag_entry(self, var, index, mode):
+        if self.lora_in_training is None:
+            return
+        text = self.tag_entry_text.get().lower()
+        words_with_pre = self.lora_in_training.tag_trie.words_with_prefix(text)
+        options = []
+        if len(words_with_pre) > 0:
+            for suggestion in words_with_pre:
+                if self.lora_in_training.trigger_word == suggestion:
+                    continue
+                if f' {suggestion},' in self.get_txt_caption():
+                    continue
+                options.append(suggestion)
+                if len(options) == 3:
+                    break
+        self.__autofill_box.update(options[:3])
+    
+    def nav_autofill(self, event):
+        if event.keysym == "Up":
+            self.__autofill_box.navigate(1)
+        elif event.keysym == "Down":
+            self.__autofill_box.navigate(-1)
 
     def on_focus_in_entry_widget(self, event, widget, placeholder_text):
         if isinstance(widget, Entry):
@@ -339,13 +382,6 @@ class TrainLoraWin(Window):
             widget.delete(0, "end")
             widget.config(fg="black")
 
-    def vcmd():
-        disallowed_chars = ["\n", "!"]
-        for char in disallowed_chars:
-            if char in new_value:
-                return False
-        return True
-
     def on_focus_out_entry_widget(self, event, widget, placeholder_text):
         if isinstance(widget, Entry):
             text = widget.get()
@@ -354,3 +390,91 @@ class TrainLoraWin(Window):
         if len(text) == 0:
             widget.config(fg="gray")
             widget.insert(END, placeholder_text)
+
+class SuggestBox:
+    def __init__(self, parent, color='black'):
+        self.__p_listbox = Frame(parent, height=3, width=50, highlightbackground="gray", highlightthickness=2)
+        self.__p_listbox.pack(anchor='n', fill=X, expand=False, padx=5, pady=5)
+        self.__l_opt1 = Label(self.__p_listbox, text='Option 1', fg=color, font=("Helvetica", 10, "bold"))
+        self.__l_opt1.grid(column=0, row=0, sticky="w")
+        self.__l_opt2 = Label(self.__p_listbox, text='Option 2', fg=color, font=("Helvetica", 10, "bold"))
+        self.lighten_foreground_color(self.__l_opt2, color, 0.165)
+        self.__l_opt2.grid(column=0, row=1, sticky="w")
+        self.__l_opt3 = Label(self.__p_listbox, text='Option 3', fg=color, font=("Helvetica", 10, "bold"))
+        self.lighten_foreground_color(self.__l_opt3, color, 0.33)
+        self.__l_opt3.grid(column=0, row=2, sticky="w")
+        self.labels = [self.__l_opt1, self.__l_opt2, self.__l_opt3]
+        self.selected = None
+        self.default_label_bg_color = self.__l_opt1.cget('bg')
+        self.clear()
+    
+    def navigate(self, dir):
+        if self.selected:
+            if dir > 0:
+                if self.selected == self.labels[1]:
+                    self.select(self.labels[0])
+                elif self.selected == self.labels[2]:
+                    self.select(self.labels[1])
+            elif dir < 0:
+                if self.selected == self.labels[0]:
+                    self.select(self.labels[1])
+                elif self.selected == self.labels[1]:
+                    self.select(self.labels[2])
+        else:
+            self.select(self.labels[0])
+
+    def select(self, label):
+        self.deselect()
+        if label.cget('text'):
+            self.selected = label
+            label.config(bg='gold')
+
+    def deselect(self):
+        if self.selected:
+            self.selected.config(bg=self.default_label_bg_color)
+            self.selected = None
+    
+    def set_label_text(self, label, text):
+            label.config(text=text)
+    
+    def update(self, options):
+        # if the first option is empty, it means that no text is entered
+        if len(options) == 0 or not options[0]:
+            self.clear()
+            return
+        for i in range(0, 3):
+            if i > (len(options) - 1):
+                self.set_label_text(self.labels[i], '')
+                continue
+            self.set_label_text(self.labels[i], options[i])
+        
+    def clear(self):
+        for label in self.labels:
+            self.set_label_text(label, '')
+        self.deselect()
+
+    
+    def lighten_foreground_color(self, label, color, amount):
+        '''
+        Lightens a hexadecimal color by a given amount and updates the label's background.
+        Amount should be between 0 and 1, where 1 means full white.
+        '''
+        rgb_tuple = label.winfo_rgb(color) # Returns a tuple like (0, 0, 65535)
+        hex_color = '#%02x%02x%02x' % (rgb_tuple[0]//256, rgb_tuple[1]//256, rgb_tuple[2]//256)
+
+        if not (0 <= amount <= 1):
+            raise ValueError("Amount must be between 0 and 1.")
+
+        # Convert hex to RGB tuple
+        hex_color = hex_color.lstrip('#')
+        rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+        # Lighten each RGB component
+        lightened_rgb = []
+        for component in rgb:
+            new_component = int(component + (255 - component) * amount)
+            lightened_rgb.append(min(255, new_component)) # Ensure value doesn't exceed 255
+
+        # Convert back to hex
+        lightened_hex = '#%02x%02x%02x' % tuple(lightened_rgb)
+        label.config(fg=lightened_hex)
