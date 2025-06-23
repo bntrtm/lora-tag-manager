@@ -291,19 +291,32 @@ class TrainLoraWin(Window):
             raise Exception(f'no data to read in {self.directory}')
         self.display_training_element(0)
 
-    def add_new_tagbox(self, widget, tag_string):
-        new_bt = TagBox(self, widget, tag_string)
+    def add_new_tagbox(self, widget, tag):
+        new_bt = TagBox(self, widget, tag)
         self.tag_btlist.append(new_bt)
         self.display_tagbox_grid()
 
     def display_tags_as_boxes(self, widget, tag_string, reload=True):
-        if reload:
+        #FIXME: when entering an already existing tag, SOME existing tag is generated (though no doubles are added, as intended)
+        '''Deletes tagboxes that should not exist, adds those that should
+        '''
+        if len(self.tag_btlist) > 0:
+            keep_bts = []
             for button in self.tag_btlist:
-                button.destroy()
-            self.tag_btlist = []
+                if button.is_trigger:
+                    keep_bts.append(button)
+                    tag_string = tag_string.replace(f'{button.tag_text},', '')
+                elif self.tag_in_caption(button.tag_text):
+                    keep_bts.append(button)
+                    tag_string = tag_string.replace(f' {button.tag_text},', '')
+                else:
+                    button.destroy()
+            self.tag_btlist = keep_bts
         tag_strs = tag_string.rstrip(', ').split(", ")
         for tag in tag_strs:
-            if not tag.isspace():
+            if tag.isspace() or not tag:
+                continue
+            else:
                 self.add_new_tagbox(self.__p_tag_container, tag)
         self.display_tagbox_grid()
     
