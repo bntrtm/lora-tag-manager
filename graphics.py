@@ -395,21 +395,31 @@ class TrainLoraWin(Window):
     def on_tag_auto(self, event):
         option_1_text = self.__autofill_box.labels[0].cget("text")
         if option_1_text:
-            self.tag_entry_text.set(option_1_text)
+            if self.tag_entry_text.get().startswith('-'):
+                self.tag_entry_text.set(f'-{option_1_text}')
+            else:
+                self.tag_entry_text.set(option_1_text)
             self.__txt_tag_entry.icursor(END)
         return "break"
     
     @require_LoRA
     def trace_tag_entry(self, var, index, mode):
         text = self.tag_entry_text.get().lower()
-        words_with_pre = self.lora_in_training.tag_trie.words_with_prefix(text)
+        if not text:
+            self.__autofill_box.update([])
+            return
+        words_with_pre = self.lora_in_training.tag_trie.words_with_prefix(text.lstrip('-'))
         options = []
         if len(words_with_pre) > 0:
             for suggestion in words_with_pre:
                 if self.lora_in_training.trigger_word == suggestion:
                     continue
-                if f' {suggestion},' in self.get_txt_caption():
-                    continue
+                if text.startswith('-'):
+                    if not self.tag_in_caption(suggestion):
+                        continue
+                else:
+                    if self.tag_in_caption(suggestion):
+                        continue
                 options.append(suggestion)
                 if len(options) == 3:
                     break
