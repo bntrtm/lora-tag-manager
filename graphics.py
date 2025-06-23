@@ -6,7 +6,6 @@ from lora import LoRA
 from log_format import str_tail_after
 import os
 
-#TODO: Add an export button
 #TODO: Fix image resize bug
     #TODO: ensure resizing window actually updates image label size
 
@@ -143,9 +142,14 @@ class TrainLoraWin(Window):
         self.__nbk_tagmodes_tab1 = ttk.Frame(self.__nbk_tagmodes)
         self.__nbk_tagmodes_tab1.pack(padx=5, pady=5)
         self.__nbk_tagmodes_tab2 = ttk.Frame(self.__nbk_tagmodes)
-        self.__nbk_tagmodes_tab2.pack()
+        self.__nbk_tagmodes_tab2.pack(padx=5, pady=5)
+        self.__nbk_tagmodes_tab3 = ttk.Frame(self.__nbk_tagmodes)
+        self.__nbk_tagmodes_tab3.pack(padx=5, pady=5)
         self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab1, text="Tag Editor")
         self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab2, text="Caption")
+        self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab3, text="Options")
+        self.__bt_savedataset = Button(self.__nbk_tagmodes_tab3, text="Save Dataset", command=self.save_dataset)
+        self.__bt_savedataset.pack(padx=5, pady=5)
         self.__caption_txt_field = Text(self.__nbk_tagmodes_tab2, wrap=WORD, state='disabled')
         self.__caption_txt_field.pack(padx=5, pady=5)
                 # tag editing radio buttons
@@ -210,6 +214,10 @@ class TrainLoraWin(Window):
         self.__bt_incrdisplay.grid(column=3, row=0, sticky='e')
         self.__l_image = Label(self.__p_viewer)
         self.__l_image.pack(fill=BOTH, expand=True)
+    
+    @require_LoRA
+    def save_dataset(self):
+        self.lora_in_training.save_dataset()
 
     def on_resize(self, event):
         if not self.display_image:
@@ -308,6 +316,8 @@ class TrainLoraWin(Window):
         if not os.path.isdir(self.directory):
             print('Directory load operation was canceled.')
             return
+        if self.lora_in_training:
+            self.lora_in_training = None
         self.__l_info.config(text=f"Working under directory: {self.directory}")
         self.lora_in_training = LoRA(self.directory, self)
         if len(self.lora_in_training.dataset) == 0:
