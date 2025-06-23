@@ -140,8 +140,3 @@ class LoRA:
                 print(f"Error: The file '{txt_path}' was not found.")
             except Exception as e:
                 print(f"An error occurred: {e}")
-
-    def destroy_all_tag_instances(self, str):
-        '''Removes input tag from the tag trie and from all .txt files
-        '''
-        pass
