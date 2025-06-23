@@ -97,6 +97,13 @@ class AddTxtQueueWin(Window):
             return
         self.__l_info.config(text=f"No corresponding .txt file exists for image: \n'{self.current}'. \nWould you like to create one?")
 
+def require_LoRA(func):
+        def wrapper(*args, **kwargs):
+            if args[0].lora_in_training is None:
+                raise Exception('no LoRA object exists for the current session; load a directory to create one')
+            result = func(*args, **kwargs)
+            return result
+        return wrapper
 
 class TrainLoraWin(Window):
     def __init__(self, gui_width, gui_height, title="LoRA Tag Manager"):
@@ -200,28 +207,22 @@ class TrainLoraWin(Window):
         self.__l_image = Label(self.__p_viewer)
         self.__l_image.pack(fill=BOTH, expand=True)
 
+    @require_LoRA
     def get_png_path(self):
-        if self.lora_in_training is None:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
         return self.lora_in_training.image_set[self.image_set_display_index]
     
+    @require_LoRA
     def get_txt_caption(self):
-        if self.lora_in_training is None:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
         return self.lora_in_training.dataset[self.get_png_path()][1]
 
     def refresh(self):
         self.display_training_element(refresh=True)
 
     def display_training_element(self, refresh=False):
-        if self.lora_in_training is None:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
         self.open_image(self.get_png_path())
         self.load_caption(self.get_png_path())
 
     def incr_display(self):
-        if self.lora_in_training is None:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
         if self.image_set_display_index == len(self.lora_in_training.image_set) - 1:
             self.image_set_display_index = 0
         else:
@@ -229,8 +230,6 @@ class TrainLoraWin(Window):
         self.display_training_element()
 
     def decr_display(self):
-        if self.lora_in_training is None:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
         if self.image_set_display_index == 0:
             self.image_set_display_index = len(self.lora_in_training.image_set) - 1
         else:
@@ -342,26 +341,29 @@ class TrainLoraWin(Window):
             negate = True
             text = text.lstrip('-')
         entry.delete(0, "end")
-        if not self.lora_in_training:
-            raise Exception('no LoRA object exists for the current session; load a directory to create one')
-        if text == self.lora_in_training.trigger_word:
-            return
-        match self.application_mode.get():
-            case "Apply":
-                if negate:
-                    self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path())
-                else:
-                    self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path())
-            case "Apply_All":
-                if negate:
-                    print(f'Removing tag "{text}" from all .txt files in dataset {self.directory}')
-                    self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path(), all=True)
-                else:
-                    print(f'Applying tag "{text}" to all .txt files in dataset {self.directory}')
-                    self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path(), all=True)
-            case _:
-                raise ValueError("only 'Apply' and 'Apply_All' are acceptable actions")
-        self.refresh()
+        
+        @require_LoRA
+        def try_continue(self):
+            if text == self.lora_in_training.trigger_word:
+                return
+            match self.application_mode.get():
+                case "Apply":
+                    if negate:
+                        self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path())
+                    else:
+                        self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path())
+                case "Apply_All":
+                    if negate:
+                        print(f'Removing tag "{text}" from all .txt files in dataset {self.directory}')
+                        self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path(), all=True)
+                    else:
+                        print(f'Applying tag "{text}" to all .txt files in dataset {self.directory}')
+                        self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path(), all=True)
+                case _:
+                    raise ValueError("only 'Apply' and 'Apply_All' are acceptable actions")
+            self.refresh()
+
+        try_continue(self)
         return "break"
     
     def on_tag_auto(self, event):
@@ -371,9 +373,8 @@ class TrainLoraWin(Window):
             self.__txt_tag_entry.icursor(END)
         return "break"
     
+    @require_LoRA
     def trace_tag_entry(self, var, index, mode):
-        if self.lora_in_training is None:
-            return
         text = self.tag_entry_text.get().lower()
         words_with_pre = self.lora_in_training.tag_trie.words_with_prefix(text)
         options = []
