@@ -35,7 +35,7 @@ class Window:
         self.__is_running = True
         while self.__is_running:
             self.redraw()
-        print("window closed...")
+        print("Window closed.")
 
     def start_queue(self, queue, func_on_yes=None):
         self.active_queue_win = AddTxtQueueWin(300, 125, queue, self, func_on_yes=func_on_yes)
@@ -101,7 +101,6 @@ class AddTxtQueueWin(Window):
         if self.current is None:
             self.queue = None
             self.caller_win.end_queue()
-            print("calling end queue")
             return
         self.__l_info.config(text=f"No corresponding .txt file exists for image: \n'{self.current}'. \nWould you like to create one?")
 
@@ -187,13 +186,9 @@ class TrainLoraWin(Window):
                     # application radio buttons
         self.__p_radio_bts = Frame(self.__p_tagger, width=25)
         self.__p_radio_bts.pack(anchor="sw")
-                    # Tkinter string variable
-                    # able to store any string value
         self.application_mode = StringVar(self.__p_radio_bts, "Apply")
-                    # Dictionary to create multiple buttons
         application_radio_vals = {"Apply to Current" : "Apply",
                 "Apply to All" : "Apply_All"}
-                    # Create buttons
         for (text, value) in application_radio_vals.items():
             Radiobutton(self.__p_radio_bts, text = text, variable = self.application_mode, 
                         value = value).pack(side=LEFT, fill = X, ipady = 5)
@@ -306,7 +301,6 @@ class TrainLoraWin(Window):
         photo = ImageTk.PhotoImage(resized_image) # convert for tkinter compatibility
         self.__l_image.config(image=photo)
         self.__l_image.image = photo
-        #self.__l_viewer.image = photo
 
     def load_directory(self):
         self.directory = filedialog.askdirectory()
@@ -329,7 +323,6 @@ class TrainLoraWin(Window):
         #FIXME: when entering an already existing tag, SOME existing tag is generated (though no doubles are added, as intended)
         '''Deletes tagboxes that should not exist, adds those that should
         '''
-        print('called')
         tag_strs = tag_string.rstrip(', ').split(", ")
         if len(self.tag_btlist) > 0:
             keep_bts = []
@@ -337,22 +330,17 @@ class TrainLoraWin(Window):
                 if button.is_trigger:
                     keep_bts.append(button)
                     tag_strs.remove(button.tag_text)
-                    #tag_string = tag_string.replace(f'{button.tag_text},', '')
                 elif self.tag_in_caption(button.tag_text):
                     keep_bts.append(button)
                     tag_strs.remove(button.tag_text)
-                    #tag_string = tag_string.replace(f' {button.tag_text},', '')
                 else:
                     button.destroy()
             self.tag_btlist = keep_bts
-        #tag_strs = tag_string.rstrip(', ').split(", ")
         for tag in tag_strs:
-            print(tag)
             if tag.isspace() or not tag:
                 continue
             else:
                 self.add_new_tagbox(self.__p_tag_container, tag)
-                print(f'adding tagbox _{tag}_')
         self.display_tagbox_grid()
     
     def display_tagbox_grid(self):
