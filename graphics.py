@@ -192,15 +192,24 @@ class TrainLoraWin(Window):
         self.__l_image = Label(self.__p_viewer)
         self.__l_image.pack(fill=BOTH, expand=True)
 
-    def refresh(self):
-        self.display_training_element(self.image_set_display_index)
-
-    def display_training_element(self, index):
+    def get_png_path(self):
         if self.lora_in_training is None:
             raise Exception('no LoRA object exists for the current session; load a directory to create one')
-        png_path = self.lora_in_training.image_set[index]
-        self.open_image(png_path)
-        self.load_caption(png_path)
+        return self.lora_in_training.image_set[self.image_set_display_index]
+    
+    def get_txt_caption(self):
+        if self.lora_in_training is None:
+            raise Exception('no LoRA object exists for the current session; load a directory to create one')
+        return self.lora_in_training.dataset[self.get_png_path()][1]
+
+    def refresh(self):
+        self.display_training_element(refresh=True)
+
+    def display_training_element(self, refresh=False):
+        if self.lora_in_training is None:
+            raise Exception('no LoRA object exists for the current session; load a directory to create one')
+        self.open_image(self.get_png_path())
+        self.load_caption(self.get_png_path())
 
     def incr_display(self):
         if self.lora_in_training is None:
@@ -209,7 +218,7 @@ class TrainLoraWin(Window):
             self.image_set_display_index = 0
         else:
             self.image_set_display_index = self.image_set_display_index + 1
-        self.display_training_element(self.image_set_display_index)
+        self.display_training_element()
 
     def decr_display(self):
         if self.lora_in_training is None:
@@ -218,7 +227,7 @@ class TrainLoraWin(Window):
             self.image_set_display_index = len(self.lora_in_training.image_set) - 1
         else:
             self.image_set_display_index = self.image_set_display_index - 1
-        self.display_training_element(self.image_set_display_index)
+        self.display_training_element()
     
     def set_caption_display_text(self, text):
         self.__caption_txt_field.config(state='normal')
@@ -233,8 +242,8 @@ class TrainLoraWin(Window):
         2) Adds contents of txt_path file corresponding to png_path in the LoRA dataset.
         3) Generates buttons representing each tag within the dataset and displays them in the 'Tags' window.
         '''
-        self.set_caption_display_text(self.lora_in_training.dataset[png_path][1])
-        self.display_tags_as_boxes(self.__p_tag_container, self.lora_in_training.dataset[png_path][1])
+        self.set_caption_display_text(self.get_txt_caption())
+        self.display_tags_as_boxes(self.__p_tag_container, self.get_txt_caption())
     
     def open_image(self, png_path):
         #file_path = filedialog.askopenfilename(filetypes=[("PNG files", "*.png")])
