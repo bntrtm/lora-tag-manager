@@ -116,6 +116,7 @@ class LoRA:
         '''Caches tag trie and captions for the LoRA in training.
         
         Reads each .txt file and populates the 'self.tag_trie' property with their contents.
+        The tag trie also stores an integer associated with each tag representing the number of times it appears in the dataset.
         Also creates a cache for caption editing.
         '''
         if len(self.dataset) == 0:
