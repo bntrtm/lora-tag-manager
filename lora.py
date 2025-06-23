@@ -22,9 +22,18 @@ class LoRA:
             pass
         self.generate_tag_trie()
         self.image_set = list(self.dataset.keys())
+        self.display_index = 0
+    
+    def save_dataset(self):
+        if len(self.dataset) == 0:
+            raise Exception("No images were found in the dataset.")
+        for key in self.dataset:
+            self.save_caption_to_txt(key)
 
     def save_caption_to_txt(self, png_path):
         txt_path = self.dataset[png_path][0]
+        if not os.path.isfile(txt_path):
+            raise Exception('Supposed *.txt path is not a valid file')
         with open(txt_path, "w") as file:
             file.write(self.dataset[png_path][1])
 
