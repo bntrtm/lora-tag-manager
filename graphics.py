@@ -5,6 +5,10 @@ import string
 from lora import LoRA
 import os
 
+#TODO: Add an export button
+#TODO: Fix image resize bug
+    #TODO: ensure resizing window actually updates image label size
+
 class Window:
     def __init__(self, gui_width, gui_height, title="LoRA Tag Manager", is_child=False):
         self.__is_running = False
@@ -325,24 +329,30 @@ class TrainLoraWin(Window):
         #FIXME: when entering an already existing tag, SOME existing tag is generated (though no doubles are added, as intended)
         '''Deletes tagboxes that should not exist, adds those that should
         '''
+        print('called')
+        tag_strs = tag_string.rstrip(', ').split(", ")
         if len(self.tag_btlist) > 0:
             keep_bts = []
             for button in self.tag_btlist:
                 if button.is_trigger:
                     keep_bts.append(button)
-                    tag_string = tag_string.replace(f'{button.tag_text},', '')
+                    tag_strs.remove(button.tag_text)
+                    #tag_string = tag_string.replace(f'{button.tag_text},', '')
                 elif self.tag_in_caption(button.tag_text):
                     keep_bts.append(button)
-                    tag_string = tag_string.replace(f' {button.tag_text},', '')
+                    tag_strs.remove(button.tag_text)
+                    #tag_string = tag_string.replace(f' {button.tag_text},', '')
                 else:
                     button.destroy()
             self.tag_btlist = keep_bts
-        tag_strs = tag_string.rstrip(', ').split(", ")
+        #tag_strs = tag_string.rstrip(', ').split(", ")
         for tag in tag_strs:
+            print(tag)
             if tag.isspace() or not tag:
                 continue
             else:
                 self.add_new_tagbox(self.__p_tag_container, tag)
+                print(f'adding tagbox _{tag}_')
         self.display_tagbox_grid()
     
     def display_tagbox_grid(self):
