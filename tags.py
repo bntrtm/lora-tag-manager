@@ -35,8 +35,7 @@ class TagBox:
         text = self.bt.cget("text")
         print(f'deleting tag in caption: {self.tag_text}')
         tags = self.win._TrainLoraWin__caption_txt_field.get("1.0", "end-1c")
-        png_path = self.win.lora_in_training.image_set[self.win.image_set_display_index]
-        self.win.lora_in_training.remove_tag_from_image_caption(self.tag_text, png_path=png_path)
+        self.win.lora_in_training.remove_tag_from_image_caption(self.tag_text, png_path=self.win.get_png_path())
         self.win.refresh()
         self.destroy()
     

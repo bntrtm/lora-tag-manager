@@ -46,12 +46,22 @@ class LoRA:
             self.tag_trie.remove(tag)
             count = self.tag_trie.get(tag)
     
-    def tag_in_caption(self, tag, index=None):
+    def tag_in_caption(self, tag, index=None, png_path=None):
+        '''Returns whether or not the given tag is found within a specified caption.
+
+        This function prioritizes its search in the following way:
+            1) Is the tag in the caption of a specified png_path?
+            2) Is the tag in the caption of a *.png path found within the dataset at a specified index?
+            3) Is the tag in the caption of the current display index?
+        '''
         if index is None:
             index = self.display_index
-        caption = self.dataset[self.image_set[index]][1]
-        search = caption.replace(', ', ',').strip()
-        return tag in search
+        if png_path is not None:
+            caption = self.dataset[png_path][1]
+        else:
+            caption = self.dataset[self.image_set[index]][1]
+        search = ',' + caption.replace(', ', ',').strip()
+        return f',{tag},' in search
 
     def add_tag_to_image_caption(self, tag, png_path=None, all=False):
         if all:
@@ -60,7 +70,7 @@ class LoRA:
             return
         if not png_path:
             raise ValueError('a .png path must be provided for the addition of a single tag to a corresponding .txt file')
-        if self.tag_in_caption(tag):
+        if self.tag_in_caption(tag, png_path=png_path):
             return
         caption = self.dataset[png_path][1]
         txt_path = self.dataset[png_path][0]
@@ -77,11 +87,11 @@ class LoRA:
             return
         if not png_path:
             raise ValueError('a .png path must be provided for the removal of a single tag from a corresponding .txt file')
-        if not self.tag_in_caption(tag):
+        if not self.tag_in_caption(tag, png_path=png_path):
             return
         txt_path = self.dataset[png_path][0]
         caption = self.dataset[png_path][1]
-        self.dataset[png_path] = (txt_path, (caption.replace(f'{tag}, ', f'{tag}').replace(f'{tag}', '')))
+        self.dataset[png_path] = (txt_path, (caption.replace(f', {tag}, ', ', ')))
         self.try_remove_trie_tag(tag)
 
     def expand_dataset_recursive(self, path):
