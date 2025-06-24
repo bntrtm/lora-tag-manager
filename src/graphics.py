@@ -2,7 +2,7 @@ from tkinter import Tk, ttk, Toplevel, BOTH, X, Y, WORD, LEFT, RIGHT, TOP, END, 
 from PIL import Image, ImageTk
 from tags import TagBox
 import string
-from lora import LoRA
+from dataset import Dataset
 from log_format import str_tail_after
 import os
 
@@ -104,19 +104,19 @@ class AddTxtQueueWin(Window):
             return
         self.__l_info.config(text=f"No corresponding .txt file exists for image: \n'{self.current}'. \nWould you like to create one?")
 
-def require_LoRA(func):
+def require_Dataset(func):
         def wrapper(*args, **kwargs):
-            if args[0].lora_in_training is None:
-                raise Exception('no LoRA object exists for the current session; load a directory to create one')
+            if args[0].dataset is None:
+                raise Exception('no Dataset object exists for the current session; load a directory to create one')
             result = func(*args, **kwargs)
             return result
         return wrapper
 
-class TrainLoraWin(Window):
+class TagManagerWin(Window):
     def __init__(self, gui_width, gui_height, title="LoRA Tag Manager"):
         super().__init__(gui_width, gui_height, title="LoRA Tag Manager")
         self.tag_btlist = []
-        self.lora_in_training = None
+        self.dataset = None
         self.current_display_image = None
 
         # set up persistent info pane
@@ -215,33 +215,33 @@ class TrainLoraWin(Window):
         self.__l_image = Label(self.__p_viewer)
         self.__l_image.pack(fill=BOTH, expand=True)
     
-    @require_LoRA
+    @require_Dataset
     def save_dataset(self):
-        self.lora_in_training.save_dataset()
+        self.dataset.save_dataset()
 
     def on_resize(self, event):
         if not self.display_image:
             self.display_image()
 
-    @require_LoRA
+    @require_Dataset
     def get_png_path(self):
-        return self.lora_in_training.image_set[self.get_display_index()]
+        return self.dataset.image_set[self.get_display_index()]
     
-    @require_LoRA
+    @require_Dataset
     def get_txt_caption(self):
-        return self.lora_in_training.dataset[self.get_png_path()][1]
+        return self.dataset.cache[self.get_png_path()][1]
 
-    @require_LoRA
+    @require_Dataset
     def get_display_index(self):
-        return self.lora_in_training.display_index
+        return self.dataset.display_index
     
-    @require_LoRA
+    @require_Dataset
     def set_display_index(self, val):
-        self.lora_in_training.display_index = val
+        self.dataset.display_index = val
 
-    @require_LoRA
+    @require_Dataset
     def tag_in_caption(self, tag):
-        return self.lora_in_training.tag_in_caption(tag)
+        return self.dataset.tag_in_caption(tag)
 
     def refresh(self):
         self.display_training_element(refresh=True)
@@ -251,7 +251,7 @@ class TrainLoraWin(Window):
         self.load_caption(self.get_png_path())
 
     def incr_display(self):
-        if self.get_display_index() == len(self.lora_in_training.image_set) - 1:
+        if self.get_display_index() == len(self.dataset.image_set) - 1:
             self.set_display_index(0)
         else:
             self.set_display_index(self.get_display_index() + 1)
@@ -259,7 +259,7 @@ class TrainLoraWin(Window):
 
     def decr_display(self):
         if self.get_display_index() == 0:
-            self.set_display_index(len(self.lora_in_training.image_set) - 1)
+            self.set_display_index(len(self.dataset.image_set) - 1)
         else:
             self.set_display_index(self.get_display_index() - 1)
         self.display_training_element()
@@ -274,8 +274,8 @@ class TrainLoraWin(Window):
         '''Loads contents of the editor window and all caption tags as interactive buttons
 
         1) Deletes contents of editor.
-        2) Adds contents of txt_path file corresponding to png_path in the LoRA dataset.
-        3) Generates buttons representing each tag within the dataset and displays them in the 'Tags' window.
+        2) Adds contents of txt_path file corresponding to png_path in the Dataset cache.
+        3) Generates buttons representing each tag within the Dataset and displays them in the 'Tags' window.
         '''
         self.set_caption_display_text(self.get_txt_caption())
         self.display_tags_as_boxes(self.__p_tag_container, self.get_txt_caption())
@@ -316,12 +316,12 @@ class TrainLoraWin(Window):
         if not os.path.isdir(self.directory):
             print('Directory load operation was canceled.')
             return
-        if self.lora_in_training:
-            self.lora_in_training = None
+        if self.dataset:
+            self.dataset = None
         self.__l_info.config(text=f"Working under directory: {self.directory}")
-        self.lora_in_training = LoRA(self.directory, self)
-        if len(self.lora_in_training.dataset) == 0:
-            self.lora_in_training = None
+        self.dataset = Dataset(self.directory, self)
+        if len(self.dataset.cache) == 0:
+            self.dataset = None
             raise Exception(f'No images were found under directory {self.directory}')
         self.display_training_element()
 
@@ -378,23 +378,23 @@ class TrainLoraWin(Window):
             text = self.__autofill_box.selected.cget("text")
         entry.delete(0, "end")
         
-        @require_LoRA
+        @require_Dataset
         def try_continue(self):
-            if text == self.lora_in_training.trigger_word:
+            if text == self.dataset.trigger_word:
                 return
             match self.application_mode.get():
                 case "Apply":
                     if negate:
-                        self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path())
+                        self.dataset.remove_tag_from_image_caption(text, png_path=self.get_png_path())
                     else:
-                        self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path())
+                        self.dataset.add_tag_to_image_caption(text, png_path=self.get_png_path())
                 case "Apply_All":
                     if negate:
                         print(f'Removing tag "{text}" from all .txt files in dataset {self.directory}')
-                        self.lora_in_training.remove_tag_from_image_caption(text, png_path=self.get_png_path(), all=True)
+                        self.dataset.remove_tag_from_image_caption(text, png_path=self.get_png_path(), all=True)
                     else:
                         print(f'Applying tag "{text}" to all .txt files in dataset {self.directory}')
-                        self.lora_in_training.add_tag_to_image_caption(text, png_path=self.get_png_path(), all=True)
+                        self.dataset.add_tag_to_image_caption(text, png_path=self.get_png_path(), all=True)
                 case _:
                     raise ValueError("only 'Apply' and 'Apply_All' are acceptable actions")
             self.refresh()
@@ -412,17 +412,17 @@ class TrainLoraWin(Window):
             self.__txt_tag_entry.icursor(END)
         return "break"
     
-    @require_LoRA
+    @require_Dataset
     def trace_tag_entry(self, var, index, mode):
         text = self.tag_entry_text.get().lower()
         if not text:
             self.__autofill_box.update([])
             return
-        words_with_pre = self.lora_in_training.tag_trie.words_with_prefix(text.lstrip('-'))
+        words_with_pre = self.dataset.tag_trie.words_with_prefix(text.lstrip('-'))
         options = []
         if len(words_with_pre) > 0:
             for suggestion in words_with_pre:
-                if self.lora_in_training.trigger_word == suggestion:
+                if self.dataset.trigger_word == suggestion:
                     continue
                 if text.startswith('-'):
                     if not self.tag_in_caption(suggestion):

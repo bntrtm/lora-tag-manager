@@ -1,7 +1,7 @@
-from graphics import TrainLoraWin
+from graphics import TagManagerWin
 
 def main():
-    win = TrainLoraWin(900, 600)
+    win = TagManagerWin(900, 600)
     win.redraw()
 
     win.wait_for_close()

@@ -7,8 +7,8 @@ class TagBox:
         self.tag_text = tag
         self.is_trigger = False
         if self.win is not None:
-            if self.win.lora_in_training is not None:    
-                if tag == self.win.lora_in_training.trigger_word:
+            if self.win.dataset is not None:    
+                if tag == self.win.dataset.trigger_word:
                     self.is_trigger = True
         print(f'Generating button for tag: {tag}')
         self.bt = Button(parent, text=tag, command=self.devise_action)
@@ -20,13 +20,13 @@ class TagBox:
             return
         match self.win.tag_click_mode.get():
             case "Delete":
-                self.win.lora_in_training.remove_tag_from_image_caption(self.tag_text, png_path=self.win.get_png_path())
+                self.win.dataset.remove_tag_from_image_caption(self.tag_text, png_path=self.win.get_png_path())
             case "Delete_All":
                 print(f'Removing tag "{self.tag_text}" from all .txt files in dataset {self.win.directory}')
-                self.win.lora_in_training.remove_tag_from_image_caption(self.tag_text, all=True)
+                self.win.dataset.remove_tag_from_image_caption(self.tag_text, all=True)
             case "Apply_All":
                 print(f'Applying tag "{self.tag_text}" to all .txt files in dataset {self.win.directory}')
-                self.win.lora_in_training.add_tag_to_image_caption(self.tag_text, all=True)
+                self.win.dataset.add_tag_to_image_caption(self.tag_text, all=True)
             case _:
                 raise ValueError("only 'Delete' and 'Apply_All' are acceptable actions")
         self.win.refresh()
