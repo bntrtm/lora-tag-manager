@@ -10,7 +10,6 @@ class TagBox:
             if self.win.dataset is not None:    
                 if tag == self.win.dataset.trigger_word:
                     self.is_trigger = True
-        print(f'Generating button for tag: {tag}')
         self.bt = Button(parent, text=tag, command=self.devise_action)
         if self.is_trigger:
             self.bt.config(text=f'{tag}🔒', bg='gold', state=DISABLED)
