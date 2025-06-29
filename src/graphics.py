@@ -6,9 +6,6 @@ from dataset import Dataset
 from log_format import str_tail_after
 import os
 
-#TODO: Fix image resize bug
-    #TODO: ensure resizing window actually updates image label size
-
 class Window:
     def __init__(self, gui_width, gui_height, title="LoRA Tag Manager", is_child=False):
         self.__is_running = False
