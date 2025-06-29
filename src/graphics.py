@@ -178,6 +178,8 @@ class TagManagerWin(Window):
         self.__txt_tag_entry.bind("<Tab>", self.on_tag_auto)
         self.__txt_tag_entry.bind("<Up>", self.nav_autofill)
         self.__txt_tag_entry.bind("<Down>", self.nav_autofill)
+        self.__txt_tag_entry.bind("<Control-Right>", self.incr_display_handle)
+        self.__txt_tag_entry.bind("<Control-Left>", self.decr_display_handle)
         self.__txt_tag_entry.bind("<FocusIn>", lambda event: self.on_focus_in_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
         self.__txt_tag_entry.bind("<FocusOut>", lambda event: self.on_focus_out_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
         self.on_focus_out_entry_widget("<FocusOut>", self.__txt_tag_entry, "Enter a tag...")
@@ -246,6 +248,11 @@ class TagManagerWin(Window):
     def display_training_element(self, refresh=False):
         self.open_image(self.get_png_path())
         self.load_caption(self.get_png_path())
+    
+    def incr_display_handle(self, event):
+        '''For non-Button widget events passing 'event' as an argument
+        '''
+        self.incr_display()
 
     def incr_display(self):
         if self.get_display_index() == len(self.dataset.image_set) - 1:
@@ -253,6 +260,11 @@ class TagManagerWin(Window):
         else:
             self.set_display_index(self.get_display_index() + 1)
         self.display_training_element()
+
+    def decr_display_handle(self, event):
+        '''For non-Button widget events passing 'event' as an argument
+        '''
+        self.decr_display()
 
     def decr_display(self):
         if self.get_display_index() == 0:
