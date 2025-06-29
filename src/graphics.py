@@ -124,6 +124,8 @@ class TagManagerWin(Window):
         self.__bt_load_dir.pack(side=LEFT)
         self.__l_info = Label(self.__p_info, text=f"Working under directory: {self.directory}")
         self.__l_info.pack(side=LEFT)
+        self.__l_index_counter = Label(self.__p_info, text='N/A')
+        self.__l_index_counter.pack(side=RIGHT, padx=5)
 
         # set up pane to house main elements
         self.__p_hrzbox = Frame(self._Window__p_master)
@@ -246,6 +248,7 @@ class TagManagerWin(Window):
         self.display_training_element(refresh=True)
 
     def display_training_element(self, refresh=False):
+        self.update_index_counter_label_text()
         self.open_image(self.get_png_path())
         self.load_caption(self.get_png_path())
     
@@ -272,6 +275,16 @@ class TagManagerWin(Window):
         else:
             self.set_display_index(self.get_display_index() - 1)
         self.display_training_element()
+
+    def update_index_counter_label_text(self):
+        text = "N/A"
+        if not self.dataset:
+            return text
+        if len(self.dataset.image_set) == 0:
+            return text
+        text = f'{self.get_display_index() + 1}/{len(self.dataset.image_set)}'
+        self.__l_index_counter.config(text=text)
+        return text
     
     def set_caption_display_text(self, text):
         self.__caption_txt_field.config(state='normal')
