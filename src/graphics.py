@@ -99,7 +99,11 @@ class AddTxtQueueWin(Window):
             self.queue = None
             self.caller_win.end_queue()
             return
-        self.__l_info.config(text=f"No corresponding .txt file exists for image: \n'{self.current}'. \nWould you like to create one?")
+        if self.checkbox_var.get() == 1:
+            self.confirm_yes()
+            return
+        else:
+            self.__l_info.config(text=f"No corresponding .txt file exists for image: \n'{self.current}'. \nWould you like to create one?")
 
 def require_Dataset(func):
         def wrapper(*args, **kwargs):
