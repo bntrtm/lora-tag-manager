@@ -120,105 +120,108 @@ class TagManagerWin(Window):
         self.dataset = None
         self.current_display_image = None
 
-        # set up persistent info pane
-        self.__p_info = Frame(self._Window__p_master, height=1, width=gui_width, highlightbackground="gray", highlightthickness=2)
-        self.__p_info.pack(side=TOP, fill=X, expand=True, padx=5, pady=5)
-        self.directory = ""
-        self.__bt_load_dir = Button(self.__p_info, text="Load", command=self.load_directory)
-        self.__bt_load_dir.pack(side=LEFT)
-        self.__l_info = Label(self.__p_info, text=f"Working under directory: {self.directory}")
-        self.__l_info.pack(side=LEFT)
-        self.__l_index_counter = Label(self.__p_info, text='N/A')
-        self.__l_index_counter.pack(side=RIGHT, padx=5)
+        def build_info_pane():
+            self.__p_info = Frame(self._Window__p_master, height=1, width=gui_width, highlightbackground="gray", highlightthickness=2)
+            self.__p_info.pack(side=TOP, fill=X, expand=True, padx=5, pady=5)
+            self.directory = ""
+            self.__bt_load_dir = Button(self.__p_info, text="Load", command=self.load_directory)
+            self.__bt_load_dir.pack(side=LEFT)
+            self.__l_info = Label(self.__p_info, text=f"Working under directory: {self.directory}")
+            self.__l_info.pack(side=LEFT)
+            self.__l_index_counter = Label(self.__p_info, text='N/A')
+            self.__l_index_counter.pack(side=RIGHT, padx=5)
 
-        # set up pane to house main elements
-        self.__p_hrzbox = Frame(self._Window__p_master)
-        self.__p_hrzbox.pack(side=TOP, fill=BOTH, expand=True)
-        #self.__p_hrzbox.pack_propagate(0)
-            # set up text editor pane
-        self.__p_editor = Frame(self.__p_hrzbox, height=gui_height, highlightbackground="gray", highlightthickness=2)
-        self.__p_editor.pack(anchor="w", side=LEFT, fill=BOTH, expand=True, padx=5, pady=5)
-        self.__l_editor = Label(self.__p_editor, text = "Tag Text Editor")
-        self.__l_editor.pack()
-        self.__nbk_tagmodes = ttk.Notebook(self.__p_editor, height=18)
-        self.__nbk_tagmodes.pack(fill=BOTH, expand=True)
-        self.__nbk_tagmodes_tab1 = ttk.Frame(self.__nbk_tagmodes)
-        self.__nbk_tagmodes_tab1.pack(padx=5, pady=5)
-        self.__nbk_tagmodes_tab2 = ttk.Frame(self.__nbk_tagmodes)
-        self.__nbk_tagmodes_tab2.pack(padx=5, pady=5)
-        self.__nbk_tagmodes_tab3 = ttk.Frame(self.__nbk_tagmodes)
-        self.__nbk_tagmodes_tab3.pack(padx=5, pady=5)
-        self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab1, text="Tag Editor")
-        self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab2, text="Caption")
-        self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab3, text="Options")
-        self.__bt_savedataset = Button(self.__nbk_tagmodes_tab3, text="Save Dataset", command=self.save_dataset)
-        self.__bt_savedataset.pack(padx=5, pady=5)
-        self.__caption_txt_field = Text(self.__nbk_tagmodes_tab2, wrap=WORD, state='disabled')
-        self.__caption_txt_field.pack(padx=5, pady=5)
-                # tag editing radio buttons
-        self.__p_tag_radio_bts = Frame(self.__nbk_tagmodes_tab1, width=25)
-        self.__p_tag_radio_bts.pack(anchor="nw", padx=5, pady=5)
-                    # Tkinter string variable
-                    # able to store any string value
-        self.tag_click_mode = StringVar(self.__p_tag_radio_bts, "Delete")
-                    # Dictionary to create multiple buttons
-        tag_click_radio_vals = {"Delete Selected" : "Delete",
-                "Apply Selected to All" : "Apply_All",
-                "Delete Selected from All" : "Delete_All"}
-                    # Create buttons
-        for (text, value) in tag_click_radio_vals.items():
-            Radiobutton(self.__p_tag_radio_bts, text = text, variable = self.tag_click_mode, 
-                        value = value).pack(side=LEFT, fill = X, ipady = 5)
-                # tagbox (buttons) container
-        self.__p_tag_container = Frame(self.__nbk_tagmodes_tab1)
-        self.__p_tag_container.pack(anchor="sw", padx=5, pady=5)
+        def build_dataset_pane():
+            self.__p_hrzbox = Frame(self._Window__p_master)
+            self.__p_hrzbox.pack(side=TOP, fill=BOTH, expand=True)
 
-                # set up pane for singular tag entry
-        self.__p_tagger = Frame(self.__p_editor)
-        self.__p_tagger.pack(side=LEFT)
-        self.tag_entry_text = StringVar()
-        self.__txt_tag_entry = Entry(self.__p_tagger, textvariable=self.tag_entry_text) #, height=1, width=50
-        self.__txt_tag_entry.pack(anchor="nw")
-        self.tag_entry_text.trace_add('write', self.trace_tag_entry)
-        self.__txt_tag_entry.bind("<Return>", lambda event: self.on_tag_entry(event, self))
-        self.__txt_tag_entry.bind("<Tab>", self.on_tag_auto)
-        self.__txt_tag_entry.bind("<Up>", self.nav_autofill)
-        self.__txt_tag_entry.bind("<Down>", self.nav_autofill)
-        self.__txt_tag_entry.bind("<Control-Right>", self.incr_display_handle)
-        self.__txt_tag_entry.bind("<Control-Left>", self.decr_display_handle)
-        self.__txt_tag_entry.bind("<FocusIn>", lambda event: self.on_focus_in_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
-        self.__txt_tag_entry.bind("<FocusOut>", lambda event: self.on_focus_out_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
-        self.on_focus_out_entry_widget("<FocusOut>", self.__txt_tag_entry, "Enter a tag...")
+        def build_editor_pane():
+            self.__p_editor = Frame(self.__p_hrzbox, height=gui_height, highlightbackground="gray", highlightthickness=2)
+            self.__p_editor.pack(anchor="w", side=LEFT, fill=BOTH, expand=True, padx=5, pady=5)
+            self.__l_editor = Label(self.__p_editor, text = "Tag Text Editor")
+            self.__l_editor.pack()
 
-                    # autofill box
-        self.__autofill_box = SuggestBox(self.__p_editor, color='red')
+            # build editor in tab layout
+            self.__nbk_tagmodes = ttk.Notebook(self.__p_editor, height=18)
+            self.__nbk_tagmodes.pack(fill=BOTH, expand=True)
+            self.__nbk_tagmodes_tab1 = ttk.Frame(self.__nbk_tagmodes)
+            self.__nbk_tagmodes_tab1.pack(padx=5, pady=5)
+            self.__nbk_tagmodes_tab2 = ttk.Frame(self.__nbk_tagmodes)
+            self.__nbk_tagmodes_tab2.pack(padx=5, pady=5)
+            self.__nbk_tagmodes_tab3 = ttk.Frame(self.__nbk_tagmodes)
+            self.__nbk_tagmodes_tab3.pack(padx=5, pady=5)
+            self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab1, text="Tag Editor")
+            self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab2, text="Caption")
+            self.__nbk_tagmodes.add(self.__nbk_tagmodes_tab3, text="Options")
+            self.__bt_savedataset = Button(self.__nbk_tagmodes_tab3, text="Save Dataset", command=self.save_dataset)
+            self.__bt_savedataset.pack(padx=5, pady=5)
+            self.__caption_txt_field = Text(self.__nbk_tagmodes_tab2, wrap=WORD, state='disabled')
+            self.__caption_txt_field.pack(padx=5, pady=5)
+            
+            # allow users to set preferred tag button action
+            self.__p_tag_radio_bts = Frame(self.__nbk_tagmodes_tab1, width=25)
+            self.__p_tag_radio_bts.pack(anchor="nw", padx=5, pady=5)
+            self.tag_click_mode = StringVar(self.__p_tag_radio_bts, "Delete")
+            tag_click_radio_vals = {"Delete Selected" : "Delete",
+                    "Apply Selected to All" : "Apply_All",
+                    "Delete Selected from All" : "Delete_All"}
+            for (text, value) in tag_click_radio_vals.items():
+                Radiobutton(self.__p_tag_radio_bts, text = text, variable = self.tag_click_mode, 
+                            value = value).pack(side=LEFT, fill = X, ipady = 5)
+            self.__p_tag_container = Frame(self.__nbk_tagmodes_tab1)
+            self.__p_tag_container.pack(anchor="sw", padx=5, pady=5)
 
-                    # application radio buttons
-        self.__p_radio_bts = Frame(self.__p_tagger, width=25)
-        self.__p_radio_bts.pack(anchor="sw")
-        self.application_mode = StringVar(self.__p_radio_bts, "Apply")
-        application_radio_vals = {"Apply to Current" : "Apply",
-                "Apply to All" : "Apply_All"}
-        for (text, value) in application_radio_vals.items():
-            Radiobutton(self.__p_radio_bts, text = text, variable = self.application_mode, 
-                        value = value).pack(side=LEFT, fill = X, ipady = 5)
+            # pane for singular tag entry
+            self.__p_tagger = Frame(self.__p_editor)
+            self.__p_tagger.pack(side=LEFT)
+            self.tag_entry_text = StringVar()
+            self.__txt_tag_entry = Entry(self.__p_tagger, textvariable=self.tag_entry_text) #, height=1, width=50
+            self.__txt_tag_entry.pack(anchor="nw")
+            self.tag_entry_text.trace_add('write', self.trace_tag_entry)
+            self.__txt_tag_entry.bind("<Return>", lambda event: self.on_tag_entry(event, self))
+            self.__txt_tag_entry.bind("<Tab>", self.on_tag_auto)
+            self.__txt_tag_entry.bind("<Up>", self.nav_autofill)
+            self.__txt_tag_entry.bind("<Down>", self.nav_autofill)
+            self.__txt_tag_entry.bind("<Control-Right>", self.incr_display_handle)
+            self.__txt_tag_entry.bind("<Control-Left>", self.decr_display_handle)
+            self.__txt_tag_entry.bind("<FocusIn>", lambda event: self.on_focus_in_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
+            self.__txt_tag_entry.bind("<FocusOut>", lambda event: self.on_focus_out_entry_widget(event, self.__txt_tag_entry, "Enter a tag..."))
+            self.on_focus_out_entry_widget("<FocusOut>", self.__txt_tag_entry, "Enter a tag...")
 
-            # set up image viewer pane
-        self.__p_viewer = Frame(self.__p_hrzbox, height=gui_height, highlightbackground="gray", highlightthickness=2)
-        self.__p_viewer.pack(anchor="e", side=LEFT, fill=BOTH, expand=True, padx=5, pady=5)
-        self.__p_viewer.pack_propagate(0)
-        self.__l_viewer = Label(self.__p_viewer, text="Current: ")
-        self.__l_viewer.pack()
-        self.__p_display = Frame(self.__p_viewer)
-        self.__p_display.pack(fill=BOTH, expand=True)
-        self.__bt_decrdisplay = Button(self.__p_display, text=' <- ', command=self.decr_display)
-        self.__bt_decrdisplay.grid(column=0, row=0, sticky='w')
-        self.__bt_savecurrent = Button(self.__p_display, text='Refresh', command=self.refresh)
-        self.__bt_savecurrent.grid(column=1, row=0, columnspan=2)
-        self.__bt_incrdisplay = Button(self.__p_display, text=' -> ', command=self.incr_display)
-        self.__bt_incrdisplay.grid(column=3, row=0, sticky='e')
-        self.__l_image = Label(self.__p_viewer)
-        self.__l_image.pack(fill=BOTH, expand=True)
+            # allow users to set preferred tag entry application option
+            self.__p_radio_bts = Frame(self.__p_tagger, width=25)
+            self.__p_radio_bts.pack(anchor="sw")
+            self.application_mode = StringVar(self.__p_radio_bts, "Apply")
+            application_radio_vals = {"Apply to Current" : "Apply",
+                    "Apply to All" : "Apply_All"}
+            for (text, value) in application_radio_vals.items():
+                new_bt = Radiobutton(self.__p_radio_bts, text = text, variable = self.application_mode, value = value)
+                new_bt.pack(side=LEFT, fill = X, ipady = 5)
+            
+            # expose a box for tag suggestions based on existing tag entry text
+            self.__autofill_box = SuggestBox(self.__p_editor, color='red')
+
+        def build_display_pane():
+            self.__p_viewer = Frame(self.__p_hrzbox, height=gui_height, highlightbackground="gray", highlightthickness=2)
+            self.__p_viewer.pack(anchor="e", side=LEFT, fill=BOTH, expand=True, padx=5, pady=5)
+            self.__p_viewer.pack_propagate(0)
+            self.__l_viewer = Label(self.__p_viewer, text="Current: ")
+            self.__l_viewer.pack()
+            self.__p_display = Frame(self.__p_viewer)
+            self.__p_display.pack(fill=BOTH, expand=True)
+            self.__bt_decrdisplay = Button(self.__p_display, text=' <- ', command=self.decr_display)
+            self.__bt_decrdisplay.grid(column=0, row=0, sticky='w')
+            self.__bt_savecurrent = Button(self.__p_display, text='Refresh', command=self.refresh)
+            self.__bt_savecurrent.grid(column=1, row=0, columnspan=2)
+            self.__bt_incrdisplay = Button(self.__p_display, text=' -> ', command=self.incr_display)
+            self.__bt_incrdisplay.grid(column=3, row=0, sticky='e')
+            self.__l_image = Label(self.__p_viewer)
+            self.__l_image.pack(fill=BOTH, expand=True)
+        
+        build_info_pane()
+        build_dataset_pane()
+        build_editor_pane()
+        build_display_pane()
     
     @require_Dataset
     def save_dataset(self):
