@@ -102,8 +102,7 @@ class AddTxtQueueWin(Window):
         if self.checkbox_var.get() == 1:
             self.confirm_yes()
             return
-        else:
-            self.__l_info.config(text=f"No corresponding .txt file exists for image: \n'{self.current}'. \nWould you like to create one?")
+        self.__l_info.config(text=f"No corresponding .txt file exists for image: \n'{self.current}'. \nWould you like to create one?")
 
 def require_Dataset(func):
         def wrapper(*args, **kwargs):
@@ -379,8 +378,7 @@ class TagManagerWin(Window):
         for tag in tag_strs:
             if tag.isspace() or not tag:
                 continue
-            else:
-                self.add_new_tagbox(self.__p_tag_container, tag)
+            self.add_new_tagbox(self.__p_tag_container, tag)
         self.display_tagbox_grid()
     
     def display_tagbox_grid(self):
