@@ -252,9 +252,9 @@ class TagManagerWin(Window):
         return self.dataset.tag_in_caption(tag)
 
     def refresh(self):
-        self.display_training_element(refresh=True)
+        self.display_training_element()
 
-    def display_training_element(self, refresh=False):
+    def display_training_element(self):
         self.update_index_counter_label_text()
         self.open_image(self.get_png_path())
         self.load_caption(self.get_png_path())
@@ -309,7 +309,7 @@ class TagManagerWin(Window):
         self.set_caption_display_text(self.get_txt_caption())
         self.display_tags_as_boxes(self.__p_tag_container, self.get_txt_caption())
     
-    def open_image(self, png_path, refresh=False):
+    def open_image(self, png_path):
         if png_path and png_path.endswith('.png'):
             self.load_image(png_path)
             self.display_image()
@@ -320,7 +320,7 @@ class TagManagerWin(Window):
     def load_image(self, file_path):
         self.current_display_image = Image.open(file_path)
 
-    def display_image(self, refresh=False):
+    def display_image(self):
         if not self.current_display_image:
             raise Exception('No image set to display')
         # FIXME: resizing does not fill entire image label; takes a few refreshes before it does.
