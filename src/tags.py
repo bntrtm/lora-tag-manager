@@ -15,7 +15,7 @@ class TagBox:
             self.bt.config(text=f'{tag}🔒', bg='gold', state=DISABLED)
 
     def devise_action(self):
-        if self.is_trigger is True:
+        if self.is_trigger:
             return
         match self.win.tag_click_mode.get():
             case "Delete":
